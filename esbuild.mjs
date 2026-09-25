@@ -5,24 +5,43 @@ import { build, context } from 'esbuild';
 const production = argv.includes('--production');
 const watch = argv.includes('--watch');
 
-const buildOptions = {
-  entryPoints: ['src/extension.ts'],
+const sharedOptions = {
   bundle: true,
-  format: 'cjs',
   minify: production,
   sourcemap: !production,
   sourcesContent: false,
+  target: 'es2022',
+  logLevel: 'warning',
+};
+
+const extensionOptions = {
+  ...sharedOptions,
+  entryPoints: ['src/extension.ts'],
+  format: 'cjs',
   platform: 'node',
   target: 'node20',
   outfile: 'dist/extension.js',
   external: ['vscode'],
-  logLevel: 'warning',
+};
+
+const webviewOptions = {
+  ...sharedOptions,
+  entryPoints: ['src/webview/main.ts', 'src/webview/styles.css'],
+  format: 'iife',
+  platform: 'browser',
+  outdir: 'dist/webview',
 };
 
 if (watch) {
-  const watchContext = await context(buildOptions);
-  await watchContext.watch();
+  const watchContexts = await Promise.all([
+    context(extensionOptions),
+    context(webviewOptions),
+  ]);
+  await Promise.all(watchContexts.map((watchContext) => watchContext.watch()));
 } else {
   await rm('dist', { recursive: true, force: true });
-  await build(buildOptions);
+  await Promise.all([
+    build(extensionOptions),
+    build(webviewOptions),
+  ]);
 }
