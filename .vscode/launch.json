@@ -2,16 +2,20 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run Env Veil",
+      "name": "Run Extension",
       "type": "extensionHost",
       "request": "launch",
-      "args": [
-        "--disable-extension=marant.the-env-guard",
-        "--extensionDevelopmentPath=${workspaceFolder}"
-      ],
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ],
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "preLaunchTask": "npm: compile"
+    },
+    {
+      "name": "Run Extension (No Debug)",
+      "type": "extensionHost",
+      "request": "launch",
+      "noDebug": true,
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "preLaunchTask": "npm: compile"
     }
   ]

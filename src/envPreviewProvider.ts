@@ -38,6 +38,7 @@ export interface PreviewAudit {
   snapshot(): PreviewAuditSnapshot;
   reset(): void;
   simulateWebviewMessage(message: WebviewToExtensionMessage): void;
+  simulatePanelActive(): void;
 }
 
 export class PreviewAuditRecorder implements PreviewAudit {
@@ -45,6 +46,7 @@ export class PreviewAuditRecorder implements PreviewAudit {
   private renders: PreviewRenderAudit[] = [];
   private renderedRevisions: number[] = [];
   private readonly messageHandlers = new Set<(value: unknown) => void>();
+  private readonly activeHandlers = new Set<() => void>();
 
   public registerMessageHandler(handler: (value: unknown) => void): void {
     this.messageHandlers.add(handler);
@@ -57,6 +59,20 @@ export class PreviewAuditRecorder implements PreviewAudit {
   public simulateWebviewMessage(message: WebviewToExtensionMessage): void {
     for (const handler of this.messageHandlers) {
       handler(message);
+    }
+  }
+
+  public registerActiveHandler(handler: () => void): void {
+    this.activeHandlers.add(handler);
+  }
+
+  public unregisterActiveHandler(handler: () => void): void {
+    this.activeHandlers.delete(handler);
+  }
+
+  public simulatePanelActive(): void {
+    for (const handler of this.activeHandlers) {
+      handler();
     }
   }
 
@@ -192,9 +208,16 @@ class PreviewSession {
     this.handleWebviewMessage(value);
   };
 
+  private readonly replayHiddenModel = (): void => {
+    if (!this.isRevealed && this.latestHiddenMessage) {
+      this.enqueueRender(this.latestHiddenMessage, true);
+    }
+  };
+
   public start(token: vscode.CancellationToken): void {
     this.refreshHiddenModel();
     this.audit?.registerMessageHandler(this.receiveWebviewMessage);
+    this.audit?.registerActiveHandler(this.replayHiddenModel);
 
     this.disposables.push(
       this.webviewPanel.webview.onDidReceiveMessage(this.receiveWebviewMessage),
@@ -209,6 +232,11 @@ class PreviewSession {
       this.webviewPanel.onDidChangeViewState((event) => {
         if (event.webviewPanel.active) {
           this.onActive(this);
+          if (this.isRevealed) {
+            this.hide();
+          } else {
+            this.replayHiddenModel();
+          }
         } else {
           this.hide();
         }
@@ -277,6 +305,7 @@ class PreviewSession {
     this.pendingMessage = undefined;
     this.latestHiddenMessage = undefined;
     this.audit?.unregisterMessageHandler(this.receiveWebviewMessage);
+    this.audit?.unregisterActiveHandler(this.replayHiddenModel);
     this.onDisposed(this);
     while (this.disposables.length > 0) {
       this.disposables.pop()?.dispose();

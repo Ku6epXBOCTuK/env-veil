@@ -92,6 +92,16 @@ suite('Env Veil reveal lifecycle', () => {
       await waitFor(() => latest(api.previewAudit?.snapshot())?.state === 'revealed');
       api.previewAudit.simulateWebviewMessage({ type: 'focusLost' });
       await waitFor(() => latest(api.previewAudit?.snapshot())?.state === 'hidden');
+      const focusLossRenderCount = api.previewAudit.snapshot().renders.length;
+      api.previewAudit.simulatePanelActive();
+      await waitFor(() => {
+        const snapshotAfterFocus = api.previewAudit?.snapshot();
+        return Boolean(
+          snapshotAfterFocus &&
+            snapshotAfterFocus.renders.length > focusLossRenderCount &&
+            latest(snapshotAfterFocus)?.state === 'hidden',
+        );
+      });
       assert.ok(!JSON.stringify(api.previewAudit.snapshot()).includes(sentinel));
 
       api.previewAudit.simulateWebviewMessage({ type: 'reveal' });
