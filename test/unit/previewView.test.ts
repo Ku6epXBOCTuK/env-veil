@@ -9,21 +9,40 @@ suite('masked preview view', () => {
     const maskedText = '# comment\nKEY="********"\nEMPTY=\n';
     assert.deepEqual(
       createPreviewView({
+        kind: 'hidden',
         maskedText,
         nonEmptyValueCount: 1,
         hasMultilineValues: false,
       }),
       {
-        maskedText,
+        text: maskedText,
         state: 'masked',
         status: '1 value hidden',
+        canReveal: true,
+        canHide: false,
       },
     );
   });
 
-  test('creates singular, plural, and empty states', () => {
+  test('creates revealed, singular, plural, and empty states', () => {
+    assert.deepEqual(
+      createPreviewView({
+        kind: 'revealed',
+        fullText: 'KEY=secret',
+        nonEmptyValueCount: 1,
+        hasMultilineValues: false,
+      }),
+      {
+        text: 'KEY=secret',
+        state: 'revealed',
+        status: 'Values revealed',
+        canReveal: false,
+        canHide: true,
+      },
+    );
     assert.strictEqual(
       createPreviewView({
+        kind: 'hidden',
         maskedText: '',
         nonEmptyValueCount: 0,
         hasMultilineValues: false,
@@ -32,6 +51,7 @@ suite('masked preview view', () => {
     );
     assert.strictEqual(
       createPreviewView({
+        kind: 'hidden',
         maskedText: 'A=********\nB=********',
         nonEmptyValueCount: 2,
         hasMultilineValues: false,

@@ -69,10 +69,12 @@ suite('Env Veil masked preview', () => {
       assert.strictEqual(firstRender.revision, 1);
       assert.strictEqual(firstRender.documentVersion, 1);
       assert.strictEqual(firstRender.model.nonEmptyValueCount, 1);
+      assert.strictEqual(firstRender.fullTextSent, false);
       assert.strictEqual(
         firstRender.model.maskedText,
         '# protected configuration\nAPI_KEY="********"\nEMPTY=\n',
       );
+      assert.strictEqual(firstRender.model.maskedText !== null, true);
       assert.ok(!Object.hasOwn(firstRender, 'fullText'));
       assert.ok(!Object.hasOwn(firstRender.model, 'fullText'));
       api.previewAudit.simulateWebviewMessage({
@@ -120,6 +122,7 @@ suite('Env Veil masked preview', () => {
       assert.ok(latestRender.revision > firstRender.revision);
       assert.ok(latestRender.documentVersion > firstRender.documentVersion);
       assert.strictEqual(latestRender.model.nonEmptyValueCount, 2);
+      assert.ok(typeof latestRender.model.maskedText === 'string');
       assert.ok(latestRender.model.maskedText.includes('API_KEY="********"'));
       assert.ok(latestRender.model.maskedText.includes('ADDED=********'));
       assert.strictEqual(

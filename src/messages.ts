@@ -4,8 +4,33 @@ export interface MaskedPreviewModel {
   readonly hasMultilineValues: boolean;
 }
 
+export interface HiddenPreviewModel extends MaskedPreviewModel {
+  readonly kind: 'hidden';
+}
+
+export interface RevealedPreviewModel {
+  readonly kind: 'revealed';
+  readonly fullText: string;
+  readonly nonEmptyValueCount: number;
+  readonly hasMultilineValues: boolean;
+}
+
+export type PreviewModel = HiddenPreviewModel | RevealedPreviewModel;
+
 export interface ReadyMessage {
   readonly type: 'ready';
+}
+
+export interface RevealMessage {
+  readonly type: 'reveal';
+}
+
+export interface HideMessage {
+  readonly type: 'hide';
+}
+
+export interface FocusLostMessage {
+  readonly type: 'focusLost';
 }
 
 export interface RenderedMessage {
@@ -17,10 +42,15 @@ export interface RenderMessage {
   readonly type: 'render';
   readonly revision: number;
   readonly documentVersion: number;
-  readonly model: MaskedPreviewModel;
+  readonly model: PreviewModel;
 }
 
-export type WebviewToExtensionMessage = ReadyMessage | RenderedMessage;
+export type WebviewToExtensionMessage =
+  | ReadyMessage
+  | RevealMessage
+  | HideMessage
+  | FocusLostMessage
+  | RenderedMessage;
 export type ExtensionToWebviewMessage = RenderMessage;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -46,12 +76,17 @@ function isNonNegativeSafeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
-function isMaskedPreviewModel(value: unknown): value is MaskedPreviewModel {
-  if (!isRecord(value) || !hasExactKeys(value, [
-    'maskedText',
-    'nonEmptyValueCount',
-    'hasMultilineValues',
-  ])) {
+function isHiddenPreviewModel(value: unknown): value is HiddenPreviewModel {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, [
+      'kind',
+      'maskedText',
+      'nonEmptyValueCount',
+      'hasMultilineValues',
+    ]) ||
+    value.kind !== 'hidden'
+  ) {
     return false;
   }
   return (
@@ -59,6 +94,30 @@ function isMaskedPreviewModel(value: unknown): value is MaskedPreviewModel {
     isNonNegativeSafeInteger(value.nonEmptyValueCount) &&
     typeof value.hasMultilineValues === 'boolean'
   );
+}
+
+function isRevealedPreviewModel(value: unknown): value is RevealedPreviewModel {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, [
+      'kind',
+      'fullText',
+      'nonEmptyValueCount',
+      'hasMultilineValues',
+    ]) ||
+    value.kind !== 'revealed'
+  ) {
+    return false;
+  }
+  return (
+    typeof value.fullText === 'string' &&
+    isNonNegativeSafeInteger(value.nonEmptyValueCount) &&
+    typeof value.hasMultilineValues === 'boolean'
+  );
+}
+
+function isPreviewModel(value: unknown): value is PreviewModel {
+  return isHiddenPreviewModel(value) || isRevealedPreviewModel(value);
 }
 
 export function parseWebviewToExtensionMessage(
@@ -70,6 +129,15 @@ export function parseWebviewToExtensionMessage(
 
   if (value.type === 'ready' && hasExactKeys(value, ['type'])) {
     return { type: 'ready' };
+  }
+  if (value.type === 'reveal' && hasExactKeys(value, ['type'])) {
+    return { type: 'reveal' };
+  }
+  if (value.type === 'hide' && hasExactKeys(value, ['type'])) {
+    return { type: 'hide' };
+  }
+  if (value.type === 'focusLost' && hasExactKeys(value, ['type'])) {
+    return { type: 'focusLost' };
   }
 
   if (
@@ -95,7 +163,7 @@ export function parseExtensionToWebviewMessage(
     !hasExactKeys(value, ['type', 'revision', 'documentVersion', 'model']) ||
     !isPositiveSafeInteger(value.revision) ||
     !isPositiveSafeInteger(value.documentVersion) ||
-    !isMaskedPreviewModel(value.model)
+    !isPreviewModel(value.model)
   ) {
     return undefined;
   }

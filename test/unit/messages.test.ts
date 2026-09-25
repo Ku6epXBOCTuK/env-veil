@@ -6,28 +6,50 @@ import {
 
 suite('webview message validation', () => {
   test('accepts valid webview messages', () => {
-    assert.deepEqual(parseWebviewToExtensionMessage({ type: 'ready' }), {
-      type: 'ready',
-    });
+    const messages = [
+      { type: 'ready' },
+      { type: 'reveal' },
+      { type: 'hide' },
+      { type: 'focusLost' },
+    ] as const;
+    for (const message of messages) {
+      assert.deepEqual(parseWebviewToExtensionMessage(message), message);
+    }
     assert.deepEqual(
       parseWebviewToExtensionMessage({ type: 'rendered', revision: 3 }),
       { type: 'rendered', revision: 3 },
     );
   });
 
-  test('accepts a valid masked render message', () => {
-    const message = {
+  test('accepts valid hidden and revealed render messages', () => {
+    const hiddenMessage = {
       type: 'render',
       revision: 2,
       documentVersion: 7,
       model: {
+        kind: 'hidden',
         maskedText: 'KEY=********',
         nonEmptyValueCount: 1,
         hasMultilineValues: false,
       },
     };
+    const revealedMessage = {
+      type: 'render',
+      revision: 3,
+      documentVersion: 7,
+      model: {
+        kind: 'revealed',
+        fullText: 'KEY=secret',
+        nonEmptyValueCount: 1,
+        hasMultilineValues: false,
+      },
+    };
 
-    assert.deepEqual(parseExtensionToWebviewMessage(message), message);
+    assert.deepEqual(parseExtensionToWebviewMessage(hiddenMessage), hiddenMessage);
+    assert.deepEqual(
+      parseExtensionToWebviewMessage(revealedMessage),
+      revealedMessage,
+    );
   });
 
   test('rejects malformed webview messages', () => {
@@ -38,6 +60,9 @@ suite('webview message validation', () => {
       {},
       { type: 'unknown' },
       { type: 'ready', revision: 1 },
+      { type: 'reveal', revision: 1 },
+      { type: 'hide', revision: 1 },
+      { type: 'focusLost', revision: 1 },
       { type: 'rendered' },
       { type: 'rendered', revision: 0 },
       { type: 'rendered', revision: 1.5 },
@@ -49,8 +74,9 @@ suite('webview message validation', () => {
     }
   });
 
-  test('rejects malformed masked render messages', () => {
-    const validModel = {
+  test('rejects mismatched or extra render fields', () => {
+    const hiddenModel = {
+      kind: 'hidden',
       maskedText: 'KEY=********',
       nonEmptyValueCount: 1,
       hasMultilineValues: false,
@@ -62,26 +88,42 @@ suite('webview message validation', () => {
         type: 'render',
         revision: 1,
         documentVersion: 1,
-        model: validModel,
+        model: hiddenModel,
         fullText: 'KEY=secret',
       },
       {
         type: 'render',
         revision: 1,
         documentVersion: 1,
-        model: { ...validModel, maskedText: 42 },
+        model: { ...hiddenModel, kind: 'revealed' },
       },
       {
         type: 'render',
         revision: 1,
         documentVersion: 1,
-        model: { ...validModel, nonEmptyValueCount: -1 },
+        model: { ...hiddenModel, maskedText: 42 },
       },
       {
         type: 'render',
         revision: 1,
         documentVersion: 1,
-        model: { ...validModel, hasMultilineValues: 'false' },
+        model: { ...hiddenModel, nonEmptyValueCount: -1 },
+      },
+      {
+        type: 'render',
+        revision: 1,
+        documentVersion: 1,
+        model: { ...hiddenModel, hasMultilineValues: 'false' },
+      },
+      {
+        type: 'render',
+        revision: 1,
+        documentVersion: 1,
+        model: {
+          kind: 'revealed',
+          nonEmptyValueCount: 1,
+          hasMultilineValues: false,
+        },
       },
     ];
 

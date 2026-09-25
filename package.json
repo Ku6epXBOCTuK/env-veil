@@ -13,10 +13,35 @@
   ],
   "activationEvents": [
     "onCustomEditor:envVeil.protectedEnv",
-    "onLanguage:dotenv"
+    "onLanguage:dotenv",
+    "onCommand:envVeil.revealValues",
+    "onCommand:envVeil.hideValues"
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "envVeil.revealValues",
+        "title": "Env Veil: Reveal Values"
+      },
+      {
+        "command": "envVeil.hideValues",
+        "title": "Env Veil: Hide Values"
+      }
+    ],
+    "configuration": {
+      "title": "Env Veil",
+      "properties": {
+        "envVeil.revealTimeoutSeconds": {
+          "type": "integer",
+          "default": 15,
+          "minimum": 1,
+          "maximum": 3600,
+          "scope": "window",
+          "description": "Seconds before revealed values are hidden again."
+        }
+      }
+    },
     "customEditors": [
       {
         "viewType": "envVeil.protectedEnv",

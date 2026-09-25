@@ -33,8 +33,28 @@ function getBodyElement(): HTMLBodyElement {
   return document.body;
 }
 
+function getButtonElement(id: string): HTMLButtonElement {
+  const element = document.getElementById(id);
+  if (!(element instanceof HTMLButtonElement)) {
+    throw new Error(`Preview button is unavailable: ${id}`);
+  }
+  return element;
+}
+
 const vscode = acquireVsCodeApi();
+const preview = getPreviewElement();
+const status = getStatusElement();
+const body = getBodyElement();
+const revealButton = getButtonElement('reveal-values');
+const hideButton = getButtonElement('hide-values');
 let lastAppliedRevision = -1;
+
+function setActionState(revealed: boolean, enabled: boolean): void {
+  revealButton.hidden = revealed;
+  revealButton.disabled = !enabled;
+  hideButton.hidden = !revealed;
+  hideButton.disabled = false;
+}
 
 function applyRender(message: ReturnType<typeof parseExtensionToWebviewMessage>): void {
   if (!message || !shouldApplyRevision(lastAppliedRevision, message.revision)) {
@@ -43,26 +63,40 @@ function applyRender(message: ReturnType<typeof parseExtensionToWebviewMessage>)
 
   lastAppliedRevision = message.revision;
   const view = createPreviewView(message.model);
-  const preview = getPreviewElement();
-  const status = getStatusElement();
-  const body = getBodyElement();
-  preview.textContent = view.maskedText;
+  preview.textContent = view.text;
   preview.setAttribute('aria-busy', 'false');
   body.dataset.state = view.state;
   status.textContent = view.status;
-
-  requestAnimationFrame(() => {
-    if (lastAppliedRevision === message.revision) {
-      vscode.postMessage({
-        type: 'rendered',
-        revision: message.revision,
-      });
-    }
-  });
+  setActionState(view.state === 'revealed', view.canReveal);
 }
+
+function clearOnFocusLoss(): void {
+  preview.textContent = '';
+  preview.setAttribute('aria-busy', 'true');
+  body.dataset.state = 'loading';
+  status.textContent = 'Values hidden';
+  setActionState(false, false);
+  vscode.postMessage({ type: 'focusLost' });
+}
+
+revealButton.addEventListener('click', () => {
+  vscode.postMessage({ type: 'reveal' });
+});
+
+hideButton.addEventListener('click', () => {
+  vscode.postMessage({ type: 'hide' });
+});
 
 window.addEventListener('message', (event: MessageEvent<unknown>) => {
   applyRender(parseExtensionToWebviewMessage(event.data));
+});
+
+window.addEventListener('blur', clearOnFocusLoss);
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') {
+    clearOnFocusLoss();
+  }
 });
 
 vscode.postMessage({ type: 'ready' });

@@ -1,16 +1,28 @@
-import type { MaskedPreviewModel } from '../messages';
+import type { PreviewModel } from '../messages';
 
-export type PreviewState = 'empty' | 'masked';
+export type PreviewState = 'empty' | 'masked' | 'revealed';
 
 export interface PreviewView {
-  readonly maskedText: string;
+  readonly text: string;
   readonly state: PreviewState;
   readonly status: string;
+  readonly canReveal: boolean;
+  readonly canHide: boolean;
 }
 
-export function createPreviewView(model: MaskedPreviewModel): PreviewView {
+export function createPreviewView(model: PreviewModel): PreviewView {
+  if (model.kind === 'revealed') {
+    return {
+      text: model.fullText,
+      state: 'revealed',
+      status: 'Values revealed',
+      canReveal: false,
+      canHide: true,
+    };
+  }
+
   return {
-    maskedText: model.maskedText,
+    text: model.maskedText,
     state: model.nonEmptyValueCount === 0 ? 'empty' : 'masked',
     status:
       model.nonEmptyValueCount === 0
@@ -18,6 +30,8 @@ export function createPreviewView(model: MaskedPreviewModel): PreviewView {
         : `${model.nonEmptyValueCount} ${
             model.nonEmptyValueCount === 1 ? 'value' : 'values'
           } hidden`,
+    canReveal: model.nonEmptyValueCount > 0,
+    canHide: false,
   };
 }
 

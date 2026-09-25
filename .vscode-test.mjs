@@ -15,6 +15,7 @@ export default defineConfig([
       'out/test/unit/previewView.test.js',
       'out/test/suite/extension.test.js',
       'out/test/suite/preview.test.js',
+      'out/test/suite/revealLifecycle.test.js',
     ],
     version: 'stable',
     workspaceFolder: './test/fixtures/workspace',

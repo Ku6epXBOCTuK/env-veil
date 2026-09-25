@@ -7,6 +7,8 @@ out/
 .DS_Store
 Thumbs.db
 test/fixtures/association-workspace/.env-veil-preview-test-*/
+test/fixtures/association-workspace/.env-veil-reveal-test-*/
 test/fixtures/association-workspace/.env-veil-test-*/
 test/fixtures/workspace/.env-veil-preview-test-*/
+test/fixtures/workspace/.env-veil-reveal-test-*/
 test/fixtures/workspace/.env-veil-test-*/

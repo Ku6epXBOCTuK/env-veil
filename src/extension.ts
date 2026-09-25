@@ -22,6 +22,22 @@ export function activate(context: vscode.ExtensionContext): EnvVeilExtensionApi 
       protectedEnvViewType,
       provider,
     ),
+    vscode.commands.registerCommand('envVeil.revealValues', () => {
+      provider.revealActive();
+    }),
+    vscode.commands.registerCommand('envVeil.hideValues', () => {
+      provider.hideActive();
+    }),
+    vscode.window.onDidChangeWindowState((state) => {
+      if (!state.focused) {
+        provider.hideAll();
+      }
+    }),
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration('envVeil.revealTimeoutSeconds')) {
+        provider.hideAll();
+      }
+    }),
   );
 
   return auditRecorder ? { previewAudit: auditRecorder } : {};
