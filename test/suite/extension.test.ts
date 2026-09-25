@@ -23,6 +23,13 @@ function getEditorAssociations(): EditorAssociations | undefined {
 
 async function closeAllEditors(): Promise<void> {
   await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+  const deadline = Date.now() + 10000;
+  while (vscode.window.tabGroups.all.some((group) => group.tabs.length > 0)) {
+    if (Date.now() >= deadline) {
+      throw new Error('Timed out waiting for editors to close');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
 }
 
 async function createTempEnvFiles(): Promise<TempEnvFiles> {

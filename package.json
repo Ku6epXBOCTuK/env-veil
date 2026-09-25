@@ -15,7 +15,8 @@
     "onCustomEditor:envVeil.protectedEnv",
     "onLanguage:dotenv",
     "onCommand:envVeil.revealValues",
-    "onCommand:envVeil.hideValues"
+    "onCommand:envVeil.hideValues",
+    "onCommand:envVeil.openInConfiguredEditor"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -27,6 +28,10 @@
       {
         "command": "envVeil.hideValues",
         "title": "Env Veil: Hide Values"
+      },
+      {
+        "command": "envVeil.openInConfiguredEditor",
+        "title": "Env Veil: Open in Configured Editor"
       }
     ],
     "configuration": {
@@ -39,6 +44,31 @@
           "maximum": 3600,
           "scope": "window",
           "description": "Seconds before revealed values are hidden again."
+        },
+        "envVeil.openIn.mode": {
+          "type": "string",
+          "enum": [
+            "vscode",
+            "external"
+          ],
+          "default": "vscode",
+          "scope": "window",
+          "description": "Editor used by Open in Editor."
+        },
+        "envVeil.externalEditor.command": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Executable used by the external editor, for example subl or an absolute path."
+        },
+        "envVeil.externalEditor.args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "machine",
+          "description": "Arguments passed before the file path. Use {file} and {workspaceFolder} placeholders."
         }
       }
     },
@@ -76,6 +106,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/cross-spawn": "^6.0.6",
     "@types/mocha": "10.0.10",
     "@types/node": "24.13.5",
     "@types/vscode": "1.105.0",
@@ -87,5 +118,8 @@
     "mocha": "12.0.2",
     "typescript": "6.0.2",
     "typescript-eslint": "8.70.1"
+  },
+  "dependencies": {
+    "cross-spawn": "^7.0.6"
   }
 }

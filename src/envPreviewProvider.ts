@@ -1,10 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
-import { getRevealTimeoutSeconds } from './config';
+import {
+  getEditorLabel,
+  getOpenInMode,
+  getRevealTimeoutSeconds,
+} from './config';
 import {
   createMaskedEnvModel,
   type MaskedEnvModel,
 } from './envParser';
+import { launchExternalEditor } from './externalEditor';
 import {
   parseWebviewToExtensionMessage,
   type RenderMessage,
@@ -17,6 +22,7 @@ export interface PreviewAuditModel {
   readonly maskedText: string | null;
   readonly hasHiddenValues: boolean;
   readonly hasMultilineValues: boolean;
+  readonly editorLabel: string;
 }
 
 export interface PreviewRenderAudit {
@@ -39,12 +45,30 @@ export interface PreviewAudit {
   reset(): void;
   simulateWebviewMessage(message: WebviewToExtensionMessage): void;
   simulatePanelActive(): void;
+  setSavePromptResponse(response: SavePromptResponse): void;
+  readonly savePromptCount: number;
+}
+
+export type SavePromptResponse = 'accept' | 'cancel';
+
+export type SavePromptRequest = () => Promise<boolean>;
+
+async function requestSaveBeforeOpen(): Promise<boolean> {
+  const choice = await vscode.window.showWarningMessage(
+    'This environment file has unsaved changes. Save before opening the configured editor?',
+    { modal: true },
+    'Save and Open',
+    'Cancel',
+  );
+  return choice === 'Save and Open';
 }
 
 export class PreviewAuditRecorder implements PreviewAudit {
   private html: string[] = [];
   private renders: PreviewRenderAudit[] = [];
   private renderedRevisions: number[] = [];
+  private savePromptResponse: SavePromptResponse = 'cancel';
+  private savePrompts = 0;
   private readonly messageHandlers = new Set<(value: unknown) => void>();
   private readonly activeHandlers = new Set<() => void>();
 
@@ -76,6 +100,19 @@ export class PreviewAuditRecorder implements PreviewAudit {
     }
   }
 
+  public get savePromptCount(): number {
+    return this.savePrompts;
+  }
+
+  public setSavePromptResponse(response: SavePromptResponse): void {
+    this.savePromptResponse = response;
+  }
+
+  public readonly requestSaveBeforeOpen: SavePromptRequest = () => {
+    this.savePrompts += 1;
+    return Promise.resolve(this.savePromptResponse === 'accept');
+  };
+
   public recordHtml(value: string): void {
     this.html.push(value);
   }
@@ -91,6 +128,7 @@ export class PreviewAuditRecorder implements PreviewAudit {
           message.model.kind === 'hidden' ? message.model.maskedText : null,
         hasHiddenValues: message.model.hasHiddenValues,
         hasMultilineValues: message.model.hasMultilineValues,
+        editorLabel: message.model.editorLabel,
       },
       fullTextSent: message.model.kind === 'revealed',
     });
@@ -115,6 +153,8 @@ export class PreviewAuditRecorder implements PreviewAudit {
     this.html = [];
     this.renders = [];
     this.renderedRevisions = [];
+    this.savePromptResponse = 'cancel';
+    this.savePrompts = 0;
   }
 }
 
@@ -164,7 +204,7 @@ function getWebviewHtml(
         <div class="preview-actions" role="group" aria-label="Value visibility">
           <button class="preview-button" id="reveal-values" type="button" disabled>Reveal Values</button>
           <button class="preview-button" id="hide-values" type="button" hidden>Hide Values</button>
-          <button class="preview-button preview-button-secondary" id="open-editor" type="button" disabled title="Available in the Open in Editor step">Open in Editor</button>
+          <button class="preview-button preview-button-secondary" id="open-editor" type="button">Open in Editor</button>
         </div>
         <div class="preview-meta">
           <div class="preview-status" role="status" aria-live="polite">
@@ -183,6 +223,7 @@ function getWebviewHtml(
 }
 
 type SessionCallback = (session: PreviewSession) => void;
+type OpenEditorCallback = (session: PreviewSession) => Promise<void>;
 
 class PreviewSession {
   private readonly disposables: vscode.Disposable[] = [];
@@ -207,6 +248,8 @@ class PreviewSession {
     private readonly audit: PreviewAuditRecorder | undefined,
     private readonly onActive: SessionCallback,
     private readonly onDisposed: SessionCallback,
+    private readonly onOpenEditor: OpenEditorCallback,
+    private readonly requestSaveBeforeOpen: SavePromptRequest,
   ) {
     this.documentUri = document.uri.toString();
   }
@@ -292,6 +335,7 @@ class PreviewSession {
         fullText,
         hasHiddenValues: this.maskedModel?.hasHiddenValues ?? false,
         hasMultilineValues: this.maskedModel?.hasMultilineValues ?? false,
+        editorLabel: getEditorLabel(),
         revealExpiresAt,
       },
     };
@@ -309,6 +353,64 @@ class PreviewSession {
     if (this.pendingMessage?.model.kind === 'revealed') {
       this.pendingMessage = this.latestHiddenMessage;
     }
+  }
+
+  public refreshEditorLabel(): void {
+    if (this.isDisposed) {
+      return;
+    }
+    const editorLabel = getEditorLabel();
+    if (this.latestHiddenMessage?.model.editorLabel === editorLabel) {
+      return;
+    }
+    if (this.isRevealed) {
+      this.hide();
+      return;
+    }
+    this.refreshHiddenModel();
+  }
+
+  public async openInConfiguredEditor(): Promise<void> {
+    this.hide();
+    const mode = getOpenInMode();
+    if (mode === 'external' && vscode.env.remoteName === undefined) {
+      if (this.document.isDirty) {
+        if (!(await this.requestSaveBeforeOpen())) {
+          return;
+        }
+        if (!(await this.document.save())) {
+          void vscode.window.showErrorMessage(
+            'Env Veil could not save the document before opening the configured editor.',
+          );
+          return;
+        }
+      }
+      try {
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(
+          this.document.uri,
+        )?.uri.fsPath;
+        await launchExternalEditor({
+          filePath: this.document.uri.fsPath,
+          ...(workspaceFolder ? { workspaceFolder } : {}),
+        });
+        return;
+      } catch {
+        void vscode.window.showErrorMessage(
+          'Env Veil could not start the configured external editor. Opening in VS Code instead.',
+        );
+      }
+    }
+    if (mode === 'external' && vscode.env.remoteName !== undefined) {
+      void vscode.window.showInformationMessage(
+        'External editors are unavailable in a remote workspace. Opening in VS Code instead.',
+      );
+    }
+    await vscode.commands.executeCommand(
+      'vscode.openWith',
+      this.document.uri,
+      'default',
+      vscode.ViewColumn.Active,
+    );
   }
 
   public dispose(): void {
@@ -375,6 +477,7 @@ class PreviewSession {
         maskedText: this.maskedModel.maskedText,
         hasHiddenValues: this.maskedModel.hasHiddenValues,
         hasMultilineValues: this.maskedModel.hasMultilineValues,
+        editorLabel: getEditorLabel(),
       },
     };
     this.enqueueRender(this.latestHiddenMessage, false);
@@ -400,6 +503,9 @@ class PreviewSession {
       case 'hide':
       case 'focusLost':
         this.hide();
+        return;
+      case 'openEditor':
+        void this.onOpenEditor(this);
         return;
       case 'rendered':
         if (message.revision === this.revision) {
@@ -502,6 +608,8 @@ export class EnvPreviewProvider implements vscode.CustomTextEditorProvider {
           this.activeSession = undefined;
         }
       },
+      (sessionToOpen) => sessionToOpen.openInConfiguredEditor(),
+      this.auditRecorder?.requestSaveBeforeOpen ?? requestSaveBeforeOpen,
     );
     this.sessions.add(session);
     session.start(token);
@@ -515,9 +623,19 @@ export class EnvPreviewProvider implements vscode.CustomTextEditorProvider {
     this.activeSession?.hide();
   }
 
+  public async openActive(): Promise<void> {
+    await this.activeSession?.openInConfiguredEditor();
+  }
+
   public hideAll(): void {
     for (const session of this.sessions) {
       session.hide();
+    }
+  }
+
+  public refreshEditorLabels(): void {
+    for (const session of this.sessions) {
+      session.refreshEditorLabel();
     }
   }
 

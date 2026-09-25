@@ -28,6 +28,9 @@ export function activate(context: vscode.ExtensionContext): EnvVeilExtensionApi 
     vscode.commands.registerCommand('envVeil.hideValues', () => {
       provider.hideActive();
     }),
+    vscode.commands.registerCommand('envVeil.openInConfiguredEditor', () => {
+      return provider.openActive();
+    }),
     vscode.window.onDidChangeWindowState((state) => {
       if (!state.focused) {
         provider.hideAll();
@@ -36,6 +39,13 @@ export function activate(context: vscode.ExtensionContext): EnvVeilExtensionApi 
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('envVeil.revealTimeoutSeconds')) {
         provider.hideAll();
+      }
+      if (
+        event.affectsConfiguration('envVeil.openIn.mode') ||
+        event.affectsConfiguration('envVeil.externalEditor.command') ||
+        event.affectsConfiguration('envVeil.externalEditor.args')
+      ) {
+        provider.refreshEditorLabels();
       }
     }),
   );

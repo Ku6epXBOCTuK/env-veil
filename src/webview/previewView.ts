@@ -9,6 +9,7 @@ export interface PreviewView {
   readonly canReveal: boolean;
   readonly canHide: boolean;
   readonly countdownSeconds: number | null;
+  readonly editorLabel: string;
 }
 
 export function createPreviewView(
@@ -26,6 +27,7 @@ export function createPreviewView(
         0,
         Math.ceil((model.revealExpiresAt - nowMs) / 1000),
       ),
+      editorLabel: model.editorLabel,
     };
   }
 
@@ -36,6 +38,7 @@ export function createPreviewView(
     canReveal: model.hasHiddenValues,
     canHide: false,
     countdownSeconds: null,
+    editorLabel: model.editorLabel,
   };
 }
 

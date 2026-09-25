@@ -10,6 +10,7 @@ suite('webview message validation', () => {
       { type: 'ready' },
       { type: 'reveal' },
       { type: 'hide' },
+      { type: 'openEditor' },
       { type: 'focusLost' },
     ] as const;
     for (const message of messages) {
@@ -31,6 +32,7 @@ suite('webview message validation', () => {
         maskedText: 'KEY=********',
         hasHiddenValues: true,
         hasMultilineValues: false,
+        editorLabel: 'VS Code',
       },
     };
     const revealedMessage = {
@@ -42,6 +44,7 @@ suite('webview message validation', () => {
         fullText: 'KEY=secret',
         hasHiddenValues: true,
         hasMultilineValues: false,
+        editorLabel: 'VS Code',
         revealExpiresAt: 123456,
       },
     };
@@ -63,6 +66,7 @@ suite('webview message validation', () => {
       { type: 'ready', revision: 1 },
       { type: 'reveal', revision: 1 },
       { type: 'hide', revision: 1 },
+      { type: 'openEditor', revision: 1 },
       { type: 'focusLost', revision: 1 },
       { type: 'rendered' },
       { type: 'rendered', revision: 0 },
@@ -81,6 +85,7 @@ suite('webview message validation', () => {
       maskedText: 'KEY=********',
       hasHiddenValues: true,
       hasMultilineValues: false,
+      editorLabel: 'VS Code',
     };
     const invalidMessages: readonly unknown[] = [
       undefined,

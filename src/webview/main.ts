@@ -49,11 +49,20 @@ function getCountdownElement(): HTMLSpanElement {
   return element;
 }
 
+function getSelectedEditorElement(): HTMLElement {
+  const element = document.getElementById('selected-editor');
+  if (!(element instanceof HTMLElement)) {
+    throw new Error('Selected editor element is unavailable');
+  }
+  return element;
+}
+
 const vscode = acquireVsCodeApi();
 const preview = getPreviewElement();
 const status = getStatusElement();
 const body = getBodyElement();
 const countdown = getCountdownElement();
+const selectedEditor = getSelectedEditorElement();
 const revealButton = getButtonElement('reveal-values');
 const hideButton = getButtonElement('hide-values');
 const openEditorButton = getButtonElement('open-editor');
@@ -68,7 +77,7 @@ function setActionState(revealed: boolean, enabled: boolean): void {
   revealButton.disabled = !enabled;
   hideButton.hidden = !revealed;
   hideButton.disabled = false;
-  openEditorButton.disabled = true;
+  openEditorButton.disabled = false;
 }
 
 function appendPreviewLine(
@@ -165,6 +174,7 @@ function applyRender(message: ReturnType<typeof parseExtensionToWebviewMessage>)
   preview.setAttribute('aria-busy', 'false');
   body.dataset.state = view.state;
   status.textContent = view.status;
+  selectedEditor.textContent = view.editorLabel;
   setActionState(view.state === 'revealed', view.canReveal);
   if (message.model.kind === 'revealed') {
     startCountdown(message.model.revealExpiresAt);
@@ -198,6 +208,10 @@ revealButton.addEventListener('click', () => {
 
 hideButton.addEventListener('click', () => {
   vscode.postMessage({ type: 'hide' });
+});
+
+openEditorButton.addEventListener('click', () => {
+  vscode.postMessage({ type: 'openEditor' });
 });
 
 window.addEventListener('message', (event: MessageEvent<unknown>) => {

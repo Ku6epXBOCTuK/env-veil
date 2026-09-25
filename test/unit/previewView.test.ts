@@ -13,6 +13,7 @@ suite('masked preview view', () => {
         maskedText,
         hasHiddenValues: true,
         hasMultilineValues: false,
+        editorLabel: 'VS Code',
       }),
       {
         text: maskedText,
@@ -20,8 +21,9 @@ suite('masked preview view', () => {
         status: 'Values hidden',
         canReveal: true,
         canHide: false,
-        countdownSeconds: null,
-      },
+         countdownSeconds: null,
+         editorLabel: 'VS Code',
+       },
     );
   });
 
@@ -32,6 +34,7 @@ suite('masked preview view', () => {
         fullText: 'KEY=secret',
         hasHiddenValues: true,
         hasMultilineValues: false,
+        editorLabel: 'VS Code',
         revealExpiresAt: 6000,
       }, 1000),
       {
@@ -40,8 +43,9 @@ suite('masked preview view', () => {
         status: 'Values revealed',
         canReveal: false,
         canHide: true,
-        countdownSeconds: 5,
-      },
+         countdownSeconds: 5,
+         editorLabel: 'VS Code',
+       },
     );
     assert.deepEqual(
       createPreviewView({
@@ -49,6 +53,7 @@ suite('masked preview view', () => {
         maskedText: '',
         hasHiddenValues: false,
         hasMultilineValues: false,
+        editorLabel: 'VS Code',
       }),
       {
         text: '',
@@ -56,8 +61,9 @@ suite('masked preview view', () => {
         status: 'Protected preview',
         canReveal: false,
         canHide: false,
-        countdownSeconds: null,
-      },
+         countdownSeconds: null,
+         editorLabel: 'VS Code',
+       },
     );
     assert.strictEqual(
       createPreviewView({
@@ -65,6 +71,7 @@ suite('masked preview view', () => {
         maskedText: 'A=********\nB=********',
         hasHiddenValues: true,
         hasMultilineValues: false,
+        editorLabel: 'VS Code',
       }).status,
       'Values hidden',
     );

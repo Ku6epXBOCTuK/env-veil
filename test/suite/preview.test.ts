@@ -10,11 +10,12 @@ const extensionId = 'local-development.env-veil';
 async function waitFor(
   predicate: () => boolean,
   timeoutMilliseconds = 10000,
+  label = 'the masked preview',
 ): Promise<void> {
   const deadline = Date.now() + timeoutMilliseconds;
   while (!predicate()) {
     if (Date.now() >= deadline) {
-      throw new Error('Timed out waiting for the masked preview');
+      throw new Error(`Timed out waiting for ${label}`);
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
@@ -24,7 +25,49 @@ function getLatestRenderedRevision(snapshot: PreviewAuditSnapshot): number {
   return snapshot.renderedRevisions.at(-1) ?? -1;
 }
 
+async function closeAllEditors(): Promise<void> {
+  await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+  await waitFor(
+    () => vscode.window.tabGroups.all.every((group) => group.tabs.length === 0),
+  );
+}
+
+function hasTextEditorTab(uri: vscode.Uri): boolean {
+  const expected = uri.toString();
+  return vscode.window.tabGroups.all
+    .flatMap((group) => group.tabs)
+    .some((tab) => {
+      const input = tab.input;
+      return (
+        input instanceof vscode.TabInputText && input.uri.toString() === expected
+      );
+    });
+}
+
+async function resetEnvVeilSettings(): Promise<void> {
+  const configuration = vscode.workspace.getConfiguration('envVeil');
+  const scoped: readonly [string, vscode.ConfigurationTarget][] = [
+    ['openIn.mode', vscode.ConfigurationTarget.Global],
+    ['externalEditor.command', vscode.ConfigurationTarget.Global],
+    ['externalEditor.args', vscode.ConfigurationTarget.Global],
+    ['revealTimeoutSeconds', vscode.ConfigurationTarget.Global],
+    ['openIn.mode', vscode.ConfigurationTarget.Workspace],
+    ['revealTimeoutSeconds', vscode.ConfigurationTarget.Workspace],
+  ];
+  for (const [key, target] of scoped) {
+    await configuration.update(key, undefined, target);
+  }
+}
+
 suite('Env Veil masked preview', () => {
+  suiteSetup(async () => {
+    await resetEnvVeilSettings();
+  });
+
+  suiteTeardown(async () => {
+    await resetEnvVeilSettings();
+  });
+
   test('sends only masked models and refreshes after edits', async () => {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     assert.ok(workspaceFolder);
@@ -143,8 +186,154 @@ suite('Env Veil masked preview', () => {
         assert.ok(currentRender.revision >= previousRender.revision);
         assert.ok(currentRender.documentVersion >= previousRender.documentVersion);
       }
+
+      const configuration = vscode.workspace.getConfiguration('envVeil');
+      await configuration.update(
+        'openIn.mode',
+        'vscode',
+        vscode.ConfigurationTarget.Workspace,
+      );
+      await waitFor(() => {
+        const latestRender = api.previewAudit?.snapshot().renders.at(-1);
+        return latestRender?.model.editorLabel === 'VS Code';
+      });
+      api.previewAudit.simulateWebviewMessage({ type: 'openEditor' });
+      await waitFor(
+        () => hasTextEditorTab(uri),
+        10000,
+        'the built-in editor tab',
+      );
+
+      await configuration.update(
+        'externalEditor.command',
+        'subl',
+        vscode.ConfigurationTarget.Global,
+      );
+      await configuration.update(
+        'openIn.mode',
+        'external',
+        vscode.ConfigurationTarget.Workspace,
+      );
+      try {
+        await waitFor(() => {
+          const latestRender = api.previewAudit?.snapshot().renders.at(-1);
+          return latestRender?.model.editorLabel === 'External: subl';
+        });
+      } finally {
+        await configuration.update(
+          'openIn.mode',
+          undefined,
+          vscode.ConfigurationTarget.Workspace,
+        );
+        await configuration.update(
+          'externalEditor.command',
+          undefined,
+          vscode.ConfigurationTarget.Global,
+        );
+      }
     } finally {
-      await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+      await closeAllEditors();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  test('requires an explicit decision for unsaved changes and hides before opening', async () => {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    assert.ok(workspaceFolder);
+    const directory = await mkdtemp(
+      join(workspaceFolder.uri.fsPath, '.env-veil-unsaved-test-'),
+    );
+    const filePath = join(directory, '.env');
+    const uri = vscode.Uri.file(filePath);
+    const sentinel = 'ENV_VEIL_UNSAVED_SENTINEL_6C21B4';
+
+    try {
+      await writeFile(filePath, `API_KEY="${sentinel}"\n`, 'utf8');
+      const extension = vscode.extensions.getExtension<EnvVeilExtensionApi>(
+        extensionId,
+      );
+      assert.ok(extension);
+      const api = await extension.activate();
+      assert.ok(api.previewAudit);
+      const audit = api.previewAudit;
+      audit.reset();
+
+      const configuration = vscode.workspace.getConfiguration('envVeil');
+      await configuration.update(
+        'openIn.mode',
+        'external',
+        vscode.ConfigurationTarget.Workspace,
+      );
+      await configuration.update(
+        'externalEditor.command',
+        process.execPath,
+        vscode.ConfigurationTarget.Global,
+      );
+      await configuration.update(
+        'externalEditor.args',
+        ['-e', 'process.exit(0)', '{file}'],
+        vscode.ConfigurationTarget.Global,
+      );
+
+      try {
+        await vscode.commands.executeCommand('vscode.open', uri);
+        audit.simulateWebviewMessage({ type: 'ready' });
+        await waitFor(() => (audit.snapshot().renders.length ?? 0) > 0);
+
+        const document = await vscode.workspace.openTextDocument(uri);
+        const edit = new vscode.WorkspaceEdit();
+        edit.insert(
+          document.uri,
+          new vscode.Position(document.lineCount, 0),
+          `\nDIRTY="${sentinel}"\n`,
+        );
+        assert.strictEqual(await vscode.workspace.applyEdit(edit), true);
+        await waitFor(() => document.isDirty);
+
+        audit.setSavePromptResponse('cancel');
+        audit.simulateWebviewMessage({ type: 'openEditor' });
+        await waitFor(() => audit.savePromptCount === 1);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        assert.strictEqual(document.isDirty, true);
+        assert.strictEqual(audit.savePromptCount, 1);
+
+        audit.setSavePromptResponse('accept');
+        audit.simulateWebviewMessage({ type: 'reveal' });
+        await waitFor(() => {
+          const latestRender = audit.snapshot().renders.at(-1);
+          return latestRender?.state === 'revealed';
+        });
+        assert.ok(!JSON.stringify(audit.snapshot()).includes(sentinel));
+
+        audit.simulateWebviewMessage({ type: 'openEditor' });
+        await waitFor(() => audit.savePromptCount === 2);
+        await waitFor(() => document.isDirty === false);
+        await waitFor(() => {
+          const latestRender = audit.snapshot().renders.at(-1);
+          return latestRender?.state === 'hidden';
+        });
+        const finalRender = audit.snapshot().renders.at(-1);
+        assert.strictEqual(finalRender?.state, 'hidden');
+        assert.strictEqual(finalRender?.fullTextSent, false);
+      } finally {
+        await configuration.update(
+          'openIn.mode',
+          undefined,
+          vscode.ConfigurationTarget.Workspace,
+        );
+        await configuration.update(
+          'externalEditor.command',
+          undefined,
+          vscode.ConfigurationTarget.Global,
+        );
+        await configuration.update(
+          'externalEditor.args',
+          undefined,
+          vscode.ConfigurationTarget.Global,
+        );
+      }
+    } finally {
+      await closeAllEditors();
       await rm(directory, { recursive: true, force: true });
     }
   });

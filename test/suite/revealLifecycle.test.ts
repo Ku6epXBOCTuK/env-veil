@@ -48,6 +48,7 @@ suite('Env Veil reveal lifecycle', () => {
       const commands = await vscode.commands.getCommands(true);
       assert.ok(commands.includes('envVeil.revealValues'));
       assert.ok(commands.includes('envVeil.hideValues'));
+      assert.ok(commands.includes('envVeil.openInConfiguredEditor'));
       api.previewAudit.reset();
       await vscode.commands.executeCommand(
         'vscode.open',

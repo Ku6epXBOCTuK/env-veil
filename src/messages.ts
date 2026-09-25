@@ -2,6 +2,7 @@ export interface MaskedPreviewModel {
   readonly maskedText: string;
   readonly hasHiddenValues: boolean;
   readonly hasMultilineValues: boolean;
+  readonly editorLabel: string;
 }
 
 export interface HiddenPreviewModel extends MaskedPreviewModel {
@@ -13,6 +14,7 @@ export interface RevealedPreviewModel {
   readonly fullText: string;
   readonly hasHiddenValues: boolean;
   readonly hasMultilineValues: boolean;
+  readonly editorLabel: string;
   readonly revealExpiresAt: number;
 }
 
@@ -28,6 +30,10 @@ export interface RevealMessage {
 
 export interface HideMessage {
   readonly type: 'hide';
+}
+
+export interface OpenEditorMessage {
+  readonly type: 'openEditor';
 }
 
 export interface FocusLostMessage {
@@ -50,6 +56,7 @@ export type WebviewToExtensionMessage =
   | ReadyMessage
   | RevealMessage
   | HideMessage
+  | OpenEditorMessage
   | FocusLostMessage
   | RenderedMessage;
 export type ExtensionToWebviewMessage = RenderMessage;
@@ -81,6 +88,7 @@ function isHiddenPreviewModel(value: unknown): value is HiddenPreviewModel {
       'maskedText',
       'hasHiddenValues',
       'hasMultilineValues',
+      'editorLabel',
     ]) ||
     value.kind !== 'hidden'
   ) {
@@ -89,7 +97,8 @@ function isHiddenPreviewModel(value: unknown): value is HiddenPreviewModel {
   return (
     typeof value.maskedText === 'string' &&
     typeof value.hasHiddenValues === 'boolean' &&
-    typeof value.hasMultilineValues === 'boolean'
+    typeof value.hasMultilineValues === 'boolean' &&
+    typeof value.editorLabel === 'string'
   );
 }
 
@@ -101,6 +110,7 @@ function isRevealedPreviewModel(value: unknown): value is RevealedPreviewModel {
       'fullText',
       'hasHiddenValues',
       'hasMultilineValues',
+      'editorLabel',
       'revealExpiresAt',
     ]) ||
     value.kind !== 'revealed'
@@ -111,6 +121,7 @@ function isRevealedPreviewModel(value: unknown): value is RevealedPreviewModel {
     typeof value.fullText === 'string' &&
     typeof value.hasHiddenValues === 'boolean' &&
     typeof value.hasMultilineValues === 'boolean' &&
+    typeof value.editorLabel === 'string' &&
     isPositiveSafeInteger(value.revealExpiresAt)
   );
 }
@@ -134,6 +145,9 @@ export function parseWebviewToExtensionMessage(
   }
   if (value.type === 'hide' && hasExactKeys(value, ['type'])) {
     return { type: 'hide' };
+  }
+  if (value.type === 'openEditor' && hasExactKeys(value, ['type'])) {
+    return { type: 'openEditor' };
   }
   if (value.type === 'focusLost' && hasExactKeys(value, ['type'])) {
     return { type: 'focusLost' };
