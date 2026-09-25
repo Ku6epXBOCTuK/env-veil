@@ -1,0 +1,66 @@
+{
+  "name": "env-veil",
+  "displayName": "Env Veil",
+  "description": "Prevents accidental on-screen exposure of .env values.",
+  "version": "0.0.1",
+  "publisher": "local-development",
+  "private": true,
+  "engines": {
+    "vscode": "^1.105.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCustomEditor:envVeil.protectedEnv",
+    "onLanguage:dotenv"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "envVeil.protectedEnv",
+        "displayName": "Env Veil",
+        "selector": [
+          {
+            "filenamePattern": "**/.env"
+          },
+          {
+            "filenamePattern": "**/.env.*"
+          }
+        ],
+        "priority": "default"
+      }
+    ]
+  },
+  "scripts": {
+    "clean": "node -e \"const fs = require('node:fs'); fs.rmSync('dist', { recursive: true, force: true }); fs.rmSync('out', { recursive: true, force: true });\"",
+    "compile": "npm run typecheck && node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "compile:tests": "tsc -p tsconfig.test.json",
+    "pretest": "npm run compile && npm run compile:tests",
+    "test": "vscode-test",
+    "package:inspect": "vsce ls",
+    "vscode:prepublish": "npm run typecheck && node esbuild.mjs --production",
+    "package": "vsce package --out dist/env-veil.vsix"
+  },
+  "overrides": {
+    "mocha": "12.0.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/mocha": "10.0.10",
+    "@types/node": "24.13.5",
+    "@types/vscode": "1.105.0",
+    "@vscode/test-cli": "0.0.15",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.0.0",
+    "esbuild": "0.28.2",
+    "eslint": "10.11.0",
+    "mocha": "12.0.2",
+    "typescript": "6.0.2",
+    "typescript-eslint": "8.70.1"
+  }
+}
