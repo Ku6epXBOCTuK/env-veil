@@ -2,12 +2,12 @@ export const MASKED_VALUE = '********';
 
 export interface MaskedEnvModel {
   readonly maskedText: string;
-  readonly nonEmptyValueCount: number;
+  readonly hasHiddenValues: boolean;
   readonly hasMultilineValues: boolean;
 }
 
 interface ScanContext {
-  nonEmptyValueCount: number;
+  hasHiddenValues: boolean;
   hasMultilineValues: boolean;
 }
 
@@ -51,7 +51,7 @@ function maskMalformedLine(
   index: number,
   context: ScanContext,
 ): ScanResult {
-  context.nonEmptyValueCount += 1;
+  context.hasHiddenValues = true;
   let endIndex = index;
   while (endIndex < text.length && getLineBreakLength(text, endIndex) === 0) {
     endIndex += 1;
@@ -77,7 +77,7 @@ function scanQuotedValue(
   const ensureMask = (): void => {
     if (!hasContent) {
       hasContent = true;
-      context.nonEmptyValueCount += 1;
+      context.hasHiddenValues = true;
       output += MASKED_VALUE;
     }
   };
@@ -85,6 +85,11 @@ function scanQuotedValue(
   while (currentIndex < text.length) {
     const character = text[currentIndex];
     if (character === quote) {
+      if (!hasContent) {
+        hasContent = true;
+        context.hasHiddenValues = true;
+        output += MASKED_VALUE;
+      }
       return {
         text: output,
         nextIndex: currentIndex + 1,
@@ -116,7 +121,7 @@ function scanQuotedValue(
   }
 
   if (!hasContent) {
-    context.nonEmptyValueCount += 1;
+    context.hasHiddenValues = true;
     output += MASKED_VALUE;
   }
 
@@ -140,7 +145,7 @@ function scanUnquotedValue(
   const ensureMask = (): void => {
     if (!hasContent) {
       hasContent = true;
-      context.nonEmptyValueCount += 1;
+      context.hasHiddenValues = true;
       output += MASKED_VALUE;
     }
   };
@@ -312,23 +317,26 @@ function scanAssignment(
 
   const lineBreakLength = getLineBreakLength(text, currentIndex);
   if (lineBreakLength > 0) {
+    context.hasHiddenValues = true;
     return {
-      text: prefix + text.slice(currentIndex, currentIndex + lineBreakLength),
+      text: prefix + MASKED_VALUE + text.slice(currentIndex, currentIndex + lineBreakLength),
       nextIndex: currentIndex + lineBreakLength,
     };
   }
   if (currentIndex >= text.length) {
+    context.hasHiddenValues = true;
     return {
-      text: prefix,
+      text: prefix + MASKED_VALUE,
       nextIndex: currentIndex,
     };
   }
 
   const firstValueCharacter = text[currentIndex];
   if (firstValueCharacter === '#' && hasPostEqualsWhitespace) {
+    context.hasHiddenValues = true;
     const comment = copyLine(text, currentIndex);
     return {
-      text: prefix + comment.text,
+      text: prefix + MASKED_VALUE + ' ' + comment.text,
       nextIndex: comment.nextIndex,
     };
   }
@@ -367,7 +375,7 @@ function scanAssignment(
 
 export function createMaskedEnvModel(text: string): MaskedEnvModel {
   const context: ScanContext = {
-    nonEmptyValueCount: 0,
+    hasHiddenValues: false,
     hasMultilineValues: false,
   };
   let output = '';
@@ -408,7 +416,7 @@ export function createMaskedEnvModel(text: string): MaskedEnvModel {
 
   return {
     maskedText: output,
-    nonEmptyValueCount: context.nonEmptyValueCount,
+    hasHiddenValues: context.hasHiddenValues,
     hasMultilineValues: context.hasMultilineValues,
   };
 }

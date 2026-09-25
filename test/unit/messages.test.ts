@@ -29,7 +29,7 @@ suite('webview message validation', () => {
       model: {
         kind: 'hidden',
         maskedText: 'KEY=********',
-        nonEmptyValueCount: 1,
+        hasHiddenValues: true,
         hasMultilineValues: false,
       },
     };
@@ -40,8 +40,9 @@ suite('webview message validation', () => {
       model: {
         kind: 'revealed',
         fullText: 'KEY=secret',
-        nonEmptyValueCount: 1,
+        hasHiddenValues: true,
         hasMultilineValues: false,
+        revealExpiresAt: 123456,
       },
     };
 
@@ -78,7 +79,7 @@ suite('webview message validation', () => {
     const hiddenModel = {
       kind: 'hidden',
       maskedText: 'KEY=********',
-      nonEmptyValueCount: 1,
+      hasHiddenValues: true,
       hasMultilineValues: false,
     };
     const invalidMessages: readonly unknown[] = [
@@ -107,7 +108,7 @@ suite('webview message validation', () => {
         type: 'render',
         revision: 1,
         documentVersion: 1,
-        model: { ...hiddenModel, nonEmptyValueCount: -1 },
+        model: { ...hiddenModel, hasHiddenValues: 'yes' },
       },
       {
         type: 'render',
@@ -121,7 +122,7 @@ suite('webview message validation', () => {
         documentVersion: 1,
         model: {
           kind: 'revealed',
-          nonEmptyValueCount: 1,
+          hasHiddenValues: true,
           hasMultilineValues: false,
         },
       },

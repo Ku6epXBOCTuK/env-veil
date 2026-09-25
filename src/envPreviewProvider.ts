@@ -15,7 +15,7 @@ export const protectedEnvViewType = 'envVeil.protectedEnv';
 
 export interface PreviewAuditModel {
   readonly maskedText: string | null;
-  readonly nonEmptyValueCount: number;
+  readonly hasHiddenValues: boolean;
   readonly hasMultilineValues: boolean;
 }
 
@@ -89,7 +89,7 @@ export class PreviewAuditRecorder implements PreviewAudit {
       model: {
         maskedText:
           message.model.kind === 'hidden' ? message.model.maskedText : null,
-        nonEmptyValueCount: message.model.nonEmptyValueCount,
+        hasHiddenValues: message.model.hasHiddenValues,
         hasMultilineValues: message.model.hasMultilineValues,
       },
       fullTextSent: message.model.kind === 'revealed',
@@ -153,19 +153,26 @@ function getWebviewHtml(
   <link rel="stylesheet" href="${stylesUri}">
   <title>Env Veil</title>
 </head>
-<body>
+  <body>
   <main class="preview-shell">
     <header class="preview-header">
       <div class="preview-identity">
         <h1 class="preview-title">Env Veil</h1>
         <p class="preview-subtitle">Protected preview</p>
       </div>
-      <div class="preview-actions" role="group" aria-label="Value visibility">
-        <button class="preview-button" id="reveal-values" type="button" disabled>Reveal Values</button>
-        <button class="preview-button" id="hide-values" type="button" hidden>Hide Values</button>
-      </div>
-      <div class="preview-status" role="status" aria-live="polite">
-        <span class="preview-status-label" id="status">Loading protected preview…</span>
+      <div class="preview-toolbar">
+        <div class="preview-actions" role="group" aria-label="Value visibility">
+          <button class="preview-button" id="reveal-values" type="button" disabled>Reveal Values</button>
+          <button class="preview-button" id="hide-values" type="button" hidden>Hide Values</button>
+          <button class="preview-button preview-button-secondary" id="open-editor" type="button" disabled title="Available in the Open in Editor step">Open in Editor</button>
+        </div>
+        <div class="preview-meta">
+          <div class="preview-status" role="status" aria-live="polite">
+            <span class="preview-status-label" id="status">Loading protected preview…</span>
+          </div>
+          <span class="preview-editor-choice">Editor: <strong id="selected-editor">VS Code</strong></span>
+          <span class="preview-countdown" id="countdown" aria-label="Automatic hide countdown" aria-live="off" hidden></span>
+        </div>
       </div>
     </header>
     <pre class="document-preview" id="preview" tabindex="0" aria-label="Masked environment file" aria-busy="true"></pre>
@@ -210,6 +217,11 @@ class PreviewSession {
 
   private readonly replayHiddenModel = (): void => {
     if (!this.isRevealed && this.latestHiddenMessage) {
+      this.revision += 1;
+      this.latestHiddenMessage = {
+        ...this.latestHiddenMessage,
+        revision: this.revision,
+      };
       this.enqueueRender(this.latestHiddenMessage, true);
     }
   };
@@ -267,6 +279,8 @@ class PreviewSession {
     }
 
     const fullText = this.document.getText();
+    const timeoutSeconds = getRevealTimeoutSeconds();
+    const revealExpiresAt = Date.now() + timeoutSeconds * 1000;
     this.isRevealed = true;
     this.revision += 1;
     const message: RenderMessage = {
@@ -276,12 +290,13 @@ class PreviewSession {
       model: {
         kind: 'revealed',
         fullText,
-        nonEmptyValueCount: this.maskedModel?.nonEmptyValueCount ?? 0,
+        hasHiddenValues: this.maskedModel?.hasHiddenValues ?? false,
         hasMultilineValues: this.maskedModel?.hasMultilineValues ?? false,
+        revealExpiresAt,
       },
     };
     this.enqueueRender(message, false);
-    this.startTimer();
+    this.startTimer(timeoutSeconds);
   }
 
   public hide(): void {
@@ -320,18 +335,18 @@ class PreviewSession {
         this.webviewPanel.active &&
         vscode.window.state.focused &&
         !this.isRevealed &&
-        (this.maskedModel?.nonEmptyValueCount ?? 0) > 0,
+         (this.maskedModel?.hasHiddenValues ?? false),
     );
   }
 
-  private startTimer(): void {
+  private startTimer(timeoutSeconds: number): void {
     this.clearTimer();
     const generation = ++this.timerGeneration;
     this.timer = setTimeout(() => {
       if (generation === this.timerGeneration && this.isRevealed) {
         this.hide();
       }
-    }, getRevealTimeoutSeconds() * 1000);
+    }, timeoutSeconds * 1000);
   }
 
   private clearTimer(): void {
@@ -358,7 +373,7 @@ class PreviewSession {
       model: {
         kind: 'hidden',
         maskedText: this.maskedModel.maskedText,
-        nonEmptyValueCount: this.maskedModel.nonEmptyValueCount,
+        hasHiddenValues: this.maskedModel.hasHiddenValues,
         hasMultilineValues: this.maskedModel.hasMultilineValues,
       },
     };

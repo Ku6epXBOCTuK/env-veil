@@ -6,57 +6,67 @@ import {
 
 suite('masked preview view', () => {
   test('creates a masked view without changing document text', () => {
-    const maskedText = '# comment\nKEY="********"\nEMPTY=\n';
+    const maskedText = '# comment\nKEY="********"\nEMPTY=********\n';
     assert.deepEqual(
       createPreviewView({
         kind: 'hidden',
         maskedText,
-        nonEmptyValueCount: 1,
+        hasHiddenValues: true,
         hasMultilineValues: false,
       }),
       {
         text: maskedText,
         state: 'masked',
-        status: '1 value hidden',
+        status: 'Values hidden',
         canReveal: true,
         canHide: false,
+        countdownSeconds: null,
       },
     );
   });
 
-  test('creates revealed, singular, plural, and empty states', () => {
+  test('creates revealed, singular, plural, and zero-value states', () => {
     assert.deepEqual(
       createPreviewView({
         kind: 'revealed',
         fullText: 'KEY=secret',
-        nonEmptyValueCount: 1,
+        hasHiddenValues: true,
         hasMultilineValues: false,
-      }),
+        revealExpiresAt: 6000,
+      }, 1000),
       {
         text: 'KEY=secret',
         state: 'revealed',
         status: 'Values revealed',
         canReveal: false,
         canHide: true,
+        countdownSeconds: 5,
+      },
+    );
+    assert.deepEqual(
+      createPreviewView({
+        kind: 'hidden',
+        maskedText: '',
+        hasHiddenValues: false,
+        hasMultilineValues: false,
+      }),
+      {
+        text: '',
+        state: 'masked',
+        status: 'Protected preview',
+        canReveal: false,
+        canHide: false,
+        countdownSeconds: null,
       },
     );
     assert.strictEqual(
       createPreviewView({
         kind: 'hidden',
-        maskedText: '',
-        nonEmptyValueCount: 0,
-        hasMultilineValues: false,
-      }).status,
-      'No values to hide',
-    );
-    assert.strictEqual(
-      createPreviewView({
-        kind: 'hidden',
         maskedText: 'A=********\nB=********',
-        nonEmptyValueCount: 2,
+        hasHiddenValues: true,
         hasMultilineValues: false,
       }).status,
-      '2 values hidden',
+      'Values hidden',
     );
   });
 

@@ -71,7 +71,7 @@ suite('Env Veil reveal lifecycle', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       assert.strictEqual(api.previewAudit.snapshot().renders.length, revealCount);
 
-      await vscode.commands.executeCommand('envVeil.hideValues');
+      api.previewAudit.simulateWebviewMessage({ type: 'hide' });
       await waitFor(() => {
         const current = latest(api.previewAudit?.snapshot());
         return Boolean(current && current.state === 'hidden' && current.revision > revealed.revision);
@@ -92,6 +92,17 @@ suite('Env Veil reveal lifecycle', () => {
       await waitFor(() => latest(api.previewAudit?.snapshot())?.state === 'revealed');
       api.previewAudit.simulateWebviewMessage({ type: 'focusLost' });
       await waitFor(() => latest(api.previewAudit?.snapshot())?.state === 'hidden');
+      const focusLossRender = latest(api.previewAudit.snapshot());
+      assert.ok(focusLossRender);
+      api.previewAudit.simulateWebviewMessage({
+        type: 'rendered',
+        revision: focusLossRender.revision,
+      });
+      await waitFor(() =>
+        (api.previewAudit?.snapshot().renderedRevisions ?? []).includes(
+          focusLossRender.revision,
+        ),
+      );
       const focusLossRenderCount = api.previewAudit.snapshot().renders.length;
       api.previewAudit.simulatePanelActive();
       await waitFor(() => {

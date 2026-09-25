@@ -1,6 +1,6 @@
 import type { PreviewModel } from '../messages';
 
-export type PreviewState = 'empty' | 'masked' | 'revealed';
+export type PreviewState = 'masked' | 'revealed';
 
 export interface PreviewView {
   readonly text: string;
@@ -8,9 +8,13 @@ export interface PreviewView {
   readonly status: string;
   readonly canReveal: boolean;
   readonly canHide: boolean;
+  readonly countdownSeconds: number | null;
 }
 
-export function createPreviewView(model: PreviewModel): PreviewView {
+export function createPreviewView(
+  model: PreviewModel,
+  nowMs = Date.now(),
+): PreviewView {
   if (model.kind === 'revealed') {
     return {
       text: model.fullText,
@@ -18,20 +22,20 @@ export function createPreviewView(model: PreviewModel): PreviewView {
       status: 'Values revealed',
       canReveal: false,
       canHide: true,
+      countdownSeconds: Math.max(
+        0,
+        Math.ceil((model.revealExpiresAt - nowMs) / 1000),
+      ),
     };
   }
 
   return {
     text: model.maskedText,
-    state: model.nonEmptyValueCount === 0 ? 'empty' : 'masked',
-    status:
-      model.nonEmptyValueCount === 0
-        ? 'No values to hide'
-        : `${model.nonEmptyValueCount} ${
-            model.nonEmptyValueCount === 1 ? 'value' : 'values'
-          } hidden`,
-    canReveal: model.nonEmptyValueCount > 0,
+    state: 'masked',
+    status: model.hasHiddenValues ? 'Values hidden' : 'Protected preview',
+    canReveal: model.hasHiddenValues,
     canHide: false,
+    countdownSeconds: null,
   };
 }
 

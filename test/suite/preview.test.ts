@@ -61,6 +61,11 @@ suite('Env Veil masked preview', () => {
 
       const firstSnapshot = api.previewAudit.snapshot();
       assert.ok(firstSnapshot.initialHtml.length > 0);
+      const initialHtml = firstSnapshot.initialHtml[0];
+      assert.ok(initialHtml);
+      assert.ok(initialHtml.includes('id="open-editor"'));
+      assert.ok(initialHtml.includes('id="selected-editor"'));
+      assert.ok(initialHtml.includes('id="countdown"'));
       assert.ok(!JSON.stringify(firstSnapshot).includes(firstSentinel));
       assert.ok(!firstSnapshot.initialHtml.some((html) => html.includes('API_KEY')));
 
@@ -68,11 +73,11 @@ suite('Env Veil masked preview', () => {
       assert.ok(firstRender);
       assert.strictEqual(firstRender.revision, 1);
       assert.strictEqual(firstRender.documentVersion, 1);
-      assert.strictEqual(firstRender.model.nonEmptyValueCount, 1);
+       assert.strictEqual(firstRender.model.hasHiddenValues, true);
       assert.strictEqual(firstRender.fullTextSent, false);
       assert.strictEqual(
         firstRender.model.maskedText,
-        '# protected configuration\nAPI_KEY="********"\nEMPTY=\n',
+         '# protected configuration\nAPI_KEY="********"\nEMPTY=********\n',
       );
       assert.strictEqual(firstRender.model.maskedText !== null, true);
       assert.ok(!Object.hasOwn(firstRender, 'fullText'));
@@ -121,7 +126,7 @@ suite('Env Veil masked preview', () => {
       assert.ok(latestRender);
       assert.ok(latestRender.revision > firstRender.revision);
       assert.ok(latestRender.documentVersion > firstRender.documentVersion);
-      assert.strictEqual(latestRender.model.nonEmptyValueCount, 2);
+       assert.strictEqual(latestRender.model.hasHiddenValues, true);
       assert.ok(typeof latestRender.model.maskedText === 'string');
       assert.ok(latestRender.model.maskedText.includes('API_KEY="********"'));
       assert.ok(latestRender.model.maskedText.includes('ADDED=********'));

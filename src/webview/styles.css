@@ -6,6 +6,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   width: 100%;
@@ -57,10 +61,30 @@ body {
   line-height: 1.25;
 }
 
-.preview-actions {
+.preview-toolbar {
   display: flex;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
   gap: 0.375rem;
+  min-width: 0;
+}
+
+.preview-actions,
+.preview-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.preview-meta {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.75rem;
+  line-height: 1.25;
 }
 
 .preview-button {
@@ -74,6 +98,11 @@ body {
   font-size: 0.75rem;
   line-height: 1.25;
   cursor: pointer;
+}
+
+.preview-button-secondary {
+  background: var(--vscode-button-background, transparent);
+  color: var(--vscode-button-foreground, var(--vscode-foreground));
 }
 
 .preview-button:hover:not(:disabled) {
@@ -94,7 +123,6 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  flex: 0 0 auto;
   min-width: 0;
   color: var(--vscode-descriptionForeground);
   font-size: 0.75rem;
@@ -111,8 +139,25 @@ body {
   content: '';
 }
 
-body[data-state='empty'] .preview-status::before {
-  background: var(--vscode-descriptionForeground);
+body[data-state='revealed'] .preview-status::before {
+  background: var(--vscode-editorWarning-foreground, var(--vscode-charts-orange, var(--vscode-foreground)));
+}
+
+.preview-editor-choice {
+  white-space: nowrap;
+}
+
+.preview-editor-choice strong {
+  color: var(--vscode-foreground);
+  font-weight: 600;
+}
+
+.preview-countdown {
+  min-width: 3.5ch;
+  color: var(--vscode-editorWarning-foreground, var(--vscode-foreground));
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .document-preview {
@@ -131,16 +176,48 @@ body[data-state='empty'] .preview-status::before {
   white-space: pre;
 }
 
+.preview-line {
+  display: block;
+  min-height: 1.55em;
+  min-width: 100%;
+  width: max-content;
+}
+
+.preview-key {
+  color: var(--vscode-symbolIcon-variableForeground, var(--vscode-foreground));
+  font-weight: 600;
+}
+
+.preview-operator {
+  color: var(--vscode-descriptionForeground);
+}
+
+.preview-value-masked {
+  color: var(--vscode-editorInfo-foreground, var(--vscode-descriptionForeground));
+  background: var(--vscode-textPreformat-background, transparent);
+  border-radius: 2px;
+}
+
 .document-preview:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -1px;
 }
 
-@media (max-width: 32rem) {
+@media (max-width: 40rem) {
   .preview-header {
     align-items: flex-start;
     flex-direction: column;
     gap: 0.625rem;
+  }
+
+  .preview-toolbar {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .preview-actions,
+  .preview-meta {
+    justify-content: flex-start;
   }
 
   .document-preview {
@@ -156,5 +233,17 @@ body[data-state='empty'] .preview-status::before {
 
   .preview-status::before {
     background: CanvasText;
+  }
+
+  .preview-key,
+  .preview-value-masked,
+  .preview-editor-choice strong,
+  .preview-countdown {
+    color: CanvasText;
+  }
+
+  .preview-value-masked {
+    background: transparent;
+    text-decoration: underline;
   }
 }

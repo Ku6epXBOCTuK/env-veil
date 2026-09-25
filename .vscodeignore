@@ -3,6 +3,8 @@
 .vscode-test.mjs
 **/*.map
 **/*.ts
+.env.manual-test
+.env.manual-empty
 **/*.vsix
 docs/**
 esbuild.mjs

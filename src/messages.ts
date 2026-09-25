@@ -1,6 +1,6 @@
 export interface MaskedPreviewModel {
   readonly maskedText: string;
-  readonly nonEmptyValueCount: number;
+  readonly hasHiddenValues: boolean;
   readonly hasMultilineValues: boolean;
 }
 
@@ -11,8 +11,9 @@ export interface HiddenPreviewModel extends MaskedPreviewModel {
 export interface RevealedPreviewModel {
   readonly kind: 'revealed';
   readonly fullText: string;
-  readonly nonEmptyValueCount: number;
+  readonly hasHiddenValues: boolean;
   readonly hasMultilineValues: boolean;
+  readonly revealExpiresAt: number;
 }
 
 export type PreviewModel = HiddenPreviewModel | RevealedPreviewModel;
@@ -72,17 +73,13 @@ function isPositiveSafeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 }
 
-function isNonNegativeSafeInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
-}
-
 function isHiddenPreviewModel(value: unknown): value is HiddenPreviewModel {
   if (
     !isRecord(value) ||
     !hasExactKeys(value, [
       'kind',
       'maskedText',
-      'nonEmptyValueCount',
+      'hasHiddenValues',
       'hasMultilineValues',
     ]) ||
     value.kind !== 'hidden'
@@ -91,7 +88,7 @@ function isHiddenPreviewModel(value: unknown): value is HiddenPreviewModel {
   }
   return (
     typeof value.maskedText === 'string' &&
-    isNonNegativeSafeInteger(value.nonEmptyValueCount) &&
+    typeof value.hasHiddenValues === 'boolean' &&
     typeof value.hasMultilineValues === 'boolean'
   );
 }
@@ -102,8 +99,9 @@ function isRevealedPreviewModel(value: unknown): value is RevealedPreviewModel {
     !hasExactKeys(value, [
       'kind',
       'fullText',
-      'nonEmptyValueCount',
+      'hasHiddenValues',
       'hasMultilineValues',
+      'revealExpiresAt',
     ]) ||
     value.kind !== 'revealed'
   ) {
@@ -111,8 +109,9 @@ function isRevealedPreviewModel(value: unknown): value is RevealedPreviewModel {
   }
   return (
     typeof value.fullText === 'string' &&
-    isNonNegativeSafeInteger(value.nonEmptyValueCount) &&
-    typeof value.hasMultilineValues === 'boolean'
+    typeof value.hasHiddenValues === 'boolean' &&
+    typeof value.hasMultilineValues === 'boolean' &&
+    isPositiveSafeInteger(value.revealExpiresAt)
   );
 }
 

@@ -7,12 +7,12 @@ import {
 function assertModel(
   input: string,
   expectedText: string,
-  expectedValueCount: number,
+  expectedHasHiddenValues: boolean,
   expectedHasMultilineValues = false,
 ): void {
   assert.deepEqual(createMaskedEnvModel(input), {
     maskedText: expectedText,
-    nonEmptyValueCount: expectedValueCount,
+    hasHiddenValues: expectedHasHiddenValues,
     hasMultilineValues: expectedHasMultilineValues,
   });
 }
@@ -22,15 +22,15 @@ suite('createMaskedEnvModel', () => {
     assertModel(
       '# comment\n  export  API_KEY = secret\nexport=export-secret\nexportKEY=other\nA-B.C:VALUE=weird',
       `# comment\n  export  API_KEY = ${MASKED_VALUE}\nexport=${MASKED_VALUE}\nexportKEY=${MASKED_VALUE}\nA-B.C:VALUE=${MASKED_VALUE}`,
-      4,
+       true,
     );
   });
 
-  test('keeps empty values and clear comments unchanged', () => {
+  test('masks empty and quoted-empty values', () => {
     assertModel(
       'EMPTY=\nSPACES= \t\nCOMMENT= # visible\nSINGLE=\'\'\nDOUBLE=""\nBACKTICK=``',
-      'EMPTY=\nSPACES= \t\nCOMMENT= # visible\nSINGLE=\'\'\nDOUBLE=""\nBACKTICK=``',
-      0,
+      `EMPTY=${MASKED_VALUE}\nSPACES= \t${MASKED_VALUE}\nCOMMENT= ${MASKED_VALUE} # visible\nSINGLE='${MASKED_VALUE}'\nDOUBLE="${MASKED_VALUE}"\nBACKTICK=\`${MASKED_VALUE}\``,
+       true,
     );
   });
 
@@ -38,7 +38,7 @@ suite('createMaskedEnvModel', () => {
     assertModel(
       'SPACE=" "\nHASH=# ambiguous',
       `SPACE="${MASKED_VALUE}"\nHASH=${MASKED_VALUE}`,
-      2,
+       true,
     );
   });
 
@@ -46,7 +46,7 @@ suite('createMaskedEnvModel', () => {
     assertModel(
       'SINGLE=\'it\\\'s\'\nDOUBLE="a\\"b"\nBACKTICK=`a\\`b`\nHASH="a#b"\nUNQUOTED=foo"bar"',
       `SINGLE='${MASKED_VALUE}'\nDOUBLE="${MASKED_VALUE}"\nBACKTICK=\`${MASKED_VALUE}\`\nHASH="${MASKED_VALUE}"\nUNQUOTED=${MASKED_VALUE}`,
-      5,
+       true,
     );
   });
 
@@ -54,7 +54,7 @@ suite('createMaskedEnvModel', () => {
     assertModel(
       'PLAIN=secret # comment\nGLUED=secret#not-comment\nESCAPED=secret \\# still-value\nQUOTED="secret" # comment\nQUOTED_GLUE="secret"#not-comment\nQUOTED_BAD="secret"junk',
       `PLAIN=${MASKED_VALUE} # comment\nGLUED=${MASKED_VALUE}\nESCAPED=${MASKED_VALUE}\nQUOTED="${MASKED_VALUE}" # comment\nQUOTED_GLUE="${MASKED_VALUE}"\nQUOTED_BAD="${MASKED_VALUE}"`,
-      6,
+       true,
     );
   });
 
@@ -62,7 +62,7 @@ suite('createMaskedEnvModel', () => {
     assertModel(
       'QUOTED="one\n# two\nthree"\nNEXT=secret\nCONTINUED=one\\\ntwo\nTHIRD=value\nESCAPED="one\\\ntwo"',
       `QUOTED="${MASKED_VALUE}\n\n"\nNEXT=${MASKED_VALUE}\nCONTINUED=${MASKED_VALUE}\\\n\nTHIRD=${MASKED_VALUE}\nESCAPED="${MASKED_VALUE}\\\n"`,
-      5,
+       true,
       true,
     );
   });
@@ -70,9 +70,9 @@ suite('createMaskedEnvModel', () => {
   test('preserves BOM, CRLF, and multiline structure', () => {
     assertModel(
       '\uFEFF# comment\r\nKEY=secret\r\nEMPTY=\r\nQUOTED="a\r\nb"\r\n',
-      `\uFEFF# comment\r\nKEY=${MASKED_VALUE}\r\nEMPTY=\r\nQUOTED="${MASKED_VALUE}\r\n"\r\n`,
-      2,
-      true,
+      `\uFEFF# comment\r\nKEY=${MASKED_VALUE}\r\nEMPTY=${MASKED_VALUE}\r\nQUOTED="${MASKED_VALUE}\r\n"\r\n`,
+        true,
+       true,
     );
   });
 
@@ -80,7 +80,7 @@ suite('createMaskedEnvModel', () => {
     assertModel(
       'A B=secret\nA#B=secret\nA"B=secret\nMISSING\nOPEN="one\nOTHER=secret',
       `${MASKED_VALUE}\n${MASKED_VALUE}\n${MASKED_VALUE}\n${MASKED_VALUE}\nOPEN="${MASKED_VALUE}\n`,
-      5,
+       true,
       true,
     );
   });
@@ -106,6 +106,6 @@ suite('createMaskedEnvModel', () => {
     );
 
     assert.ok(!model.maskedText.includes(sentinel));
-    assert.strictEqual(model.nonEmptyValueCount, 3);
+    assert.strictEqual(model.hasHiddenValues, true);
   });
 });
