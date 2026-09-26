@@ -48,6 +48,7 @@ export interface PreviewAudit {
   simulateWebviewMessage(message: WebviewToExtensionMessage): void;
   simulatePanelActive(): void;
   setSavePromptResponse(response: SavePromptResponse): void;
+  setWindowFocused(focused: boolean): void;
   readonly savePromptCount: number;
 }
 
@@ -71,11 +72,19 @@ export class PreviewAuditRecorder implements PreviewAudit {
   private renderedRevisions: number[] = [];
   private savePromptResponse: SavePromptResponse = 'cancel';
   private savePrompts = 0;
+  private windowFocusedOverride: boolean | undefined;
   private readonly messageHandlers = new Set<(value: unknown) => void>();
   private readonly activeHandlers = new Set<() => void>();
+  private readonly queuedMessages: unknown[] = [];
 
   public registerMessageHandler(handler: (value: unknown) => void): void {
     this.messageHandlers.add(handler);
+    if (this.queuedMessages.length > 0) {
+      const queued = this.queuedMessages.splice(0, this.queuedMessages.length);
+      for (const message of queued) {
+        handler(message);
+      }
+    }
   }
 
   public unregisterMessageHandler(handler: (value: unknown) => void): void {
@@ -83,6 +92,10 @@ export class PreviewAuditRecorder implements PreviewAudit {
   }
 
   public simulateWebviewMessage(message: WebviewToExtensionMessage): void {
+    if (this.messageHandlers.size === 0) {
+      this.queuedMessages.push(message);
+      return;
+    }
     for (const handler of this.messageHandlers) {
       handler(message);
     }
@@ -108,6 +121,14 @@ export class PreviewAuditRecorder implements PreviewAudit {
 
   public setSavePromptResponse(response: SavePromptResponse): void {
     this.savePromptResponse = response;
+  }
+
+  public setWindowFocused(focused: boolean): void {
+    this.windowFocusedOverride = focused;
+  }
+
+  public isWindowFocused(): boolean | undefined {
+    return this.windowFocusedOverride;
   }
 
   public readonly requestSaveBeforeOpen: SavePromptRequest = () => {
@@ -157,6 +178,8 @@ export class PreviewAuditRecorder implements PreviewAudit {
     this.renderedRevisions = [];
     this.savePromptResponse = 'cancel';
     this.savePrompts = 0;
+    this.windowFocusedOverride = undefined;
+    this.queuedMessages.length = 0;
   }
 }
 
@@ -258,6 +281,7 @@ class PreviewSession {
     private readonly onOpenEditor: OpenEditorCallback,
     private readonly requestSaveBeforeOpen: SavePromptRequest,
     private readonly markIntentionalOpen: (uri: vscode.Uri) => void,
+    private readonly isWindowFocused: () => boolean,
   ) {
     this.documentUri = document.uri.toString();
   }
@@ -478,9 +502,9 @@ class PreviewSession {
         this.isReady &&
         this.webviewPanel.visible &&
         this.webviewPanel.active &&
-        vscode.window.state.focused &&
+        this.isWindowFocused() &&
         !this.isRevealed &&
-         (this.maskedModel?.hasHiddenValues ?? false),
+        (this.maskedModel?.hasHiddenValues ?? false),
     );
   }
 
@@ -643,6 +667,7 @@ export class EnvPreviewProvider implements vscode.CustomTextEditorProvider {
     private readonly extensionUri: vscode.Uri,
     private readonly auditRecorder: PreviewAuditRecorder | undefined,
     private readonly markIntentionalOpen: (uri: vscode.Uri) => void,
+    private readonly isWindowFocused: () => boolean,
   ) {}
 
   public resolveCustomTextEditor(
@@ -676,6 +701,7 @@ export class EnvPreviewProvider implements vscode.CustomTextEditorProvider {
       (sessionToOpen) => sessionToOpen.openInConfiguredEditor(),
       this.auditRecorder?.requestSaveBeforeOpen ?? requestSaveBeforeOpen,
       this.markIntentionalOpen,
+      this.isWindowFocused,
     );
     this.sessions.add(session);
     session.start(token);

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#222F48" />
+      <stop offset="1" stop-color="#0F1522" />
+    </linearGradient>
+    <linearGradient id="shield" x1="25.6" y1="44" x2="230.4" y2="230" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6EE7DC" />
+      <stop offset="1" stop-color="#20B2AA" />
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="256" height="256" rx="56" ry="56" fill="url(#bg)" />
+
+  <path d="M 25.6 44
+           H 230.4
+           V 124
+           C 230.4 174 178 210 128 230
+           C 78 210 25.6 174 25.6 124
+           Z"
+        fill="url(#shield)" />
+
+  <text x="128"
+        y="136"
+        fill="#0C1426"
+        font-family="Consolas, 'DejaVu Sans Mono', 'Courier New', monospace"
+        font-size="64"
+        font-weight="700"
+        letter-spacing="-1"
+        text-anchor="middle">.env</text>
+</svg>

@@ -2,10 +2,10 @@ import * as assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as vscode from 'vscode';
+import { extensionId } from '../support/extensionId';
 import type { EnvVeilExtensionApi } from '../../src/extension';
 import type { PreviewAuditSnapshot } from '../../src/envPreviewProvider';
 
-const extensionId = 'local-development.env-veil';
 
 async function waitFor(
   predicate: () => boolean,
@@ -90,6 +90,7 @@ suite('Env Veil masked preview', () => {
       const api = await extension.activate();
       assert.ok(api.previewAudit);
       api.previewAudit.reset();
+      api.previewAudit.setWindowFocused(true);
 
       await vscode.commands.executeCommand(
         'vscode.open',
@@ -257,6 +258,7 @@ suite('Env Veil masked preview', () => {
       assert.ok(api.previewAudit);
       const audit = api.previewAudit;
       audit.reset();
+      audit.setWindowFocused(true);
 
       const configuration = vscode.workspace.getConfiguration('envVeil');
       await configuration.update(

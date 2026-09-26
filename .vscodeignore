@@ -1,6 +1,7 @@
 .gitignore
 .vscode/**
 .vscode-test.mjs
+icon.svg
 **/*.map
 **/*.ts
 .env.manual-test

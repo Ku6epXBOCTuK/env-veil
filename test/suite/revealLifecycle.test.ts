@@ -2,10 +2,10 @@ import * as assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as vscode from 'vscode';
+import { extensionId } from '../support/extensionId';
 import type { EnvVeilExtensionApi } from '../../src/extension';
 import type { PreviewAuditSnapshot } from '../../src/envPreviewProvider';
 
-const extensionId = 'local-development.env-veil';
 const defaultEditorId = 'default';
 
 async function waitFor(
@@ -50,6 +50,7 @@ suite('Env Veil reveal lifecycle', () => {
       assert.ok(commands.includes('envVeil.hideValues'));
       assert.ok(commands.includes('envVeil.openInConfiguredEditor'));
       api.previewAudit.reset();
+      api.previewAudit.setWindowFocused(true);
       await vscode.commands.executeCommand(
         'vscode.open',
         uri,
@@ -147,6 +148,7 @@ suite('Env Veil reveal lifecycle', () => {
       await waitFor(() => latest(api.previewAudit?.snapshot())?.state === 'revealed');
       await vscode.commands.executeCommand('workbench.action.closeAllEditors');
       api.previewAudit.reset();
+      api.previewAudit.setWindowFocused(true);
       await vscode.commands.executeCommand(
         'vscode.open',
         uri,

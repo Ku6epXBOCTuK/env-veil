@@ -12,3 +12,4 @@ test/fixtures/association-workspace/.env-veil-test-*/
 test/fixtures/workspace/.env-veil-preview-test-*/
 test/fixtures/workspace/.env-veil-reveal-test-*/
 test/fixtures/workspace/.env-veil-test-*/
+test/fixtures/workspace/.env-veil-protection-test-8EJ418/.env

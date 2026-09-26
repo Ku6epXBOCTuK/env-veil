@@ -38,6 +38,7 @@ export function activate(context: vscode.ExtensionContext): EnvVeilExtensionApi 
     context.extensionUri,
     auditRecorder,
     (uri) => monitor.markIntentionalOpen(uri),
+    () => auditRecorder?.isWindowFocused() ?? vscode.window.state.focused,
   );
 
   if (protectionAudit) {

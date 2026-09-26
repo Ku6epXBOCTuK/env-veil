@@ -2,8 +2,24 @@
   "name": "env-veil",
   "displayName": "Env Veil",
   "description": "Prevents accidental on-screen exposure of .env values.",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#151D2E",
+    "theme": "dark"
+  },
+  "keywords": [
+    "env",
+    "dotenv",
+    "secrets",
+    "mask",
+    "masking",
+    "redact",
+    "security",
+    "privacy",
+    "environment"
+  ],
   "version": "0.0.1",
-  "publisher": "local-development",
+  "publisher": "Ku6epXBOCTuK",
   "license": "MIT",
   "private": true,
   "engines": {

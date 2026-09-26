@@ -2,10 +2,10 @@ import * as assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as vscode from 'vscode';
+import { extensionId } from '../support/extensionId';
 import type { EnvVeilExtensionApi } from '../../src/extension';
 import type { PreviewAuditSnapshot } from '../../src/envPreviewProvider';
 
-const extensionId = 'local-development.env-veil';
 
 async function waitFor(
   predicate: () => boolean,
@@ -70,6 +70,7 @@ suite('Env Veil external file changes', () => {
       await writeFile(filePath, `API_KEY="${firstSecret}"\n`, 'utf8');
       const audit = await getPreviewAudit();
       audit.reset();
+      audit.setWindowFocused(true);
 
       await vscode.commands.executeCommand('vscode.open', uri);
       audit.simulateWebviewMessage({ type: 'ready' });
@@ -127,6 +128,7 @@ suite('Env Veil external file changes', () => {
       await writeFile(filePath, 'API_KEY="ENV_VEIL_REVEAL_FIRST"\n', 'utf8');
       const audit = await getPreviewAudit();
       audit.reset();
+      audit.setWindowFocused(true);
 
       await vscode.commands.executeCommand('vscode.open', uri);
       audit.simulateWebviewMessage({ type: 'ready' });
@@ -142,7 +144,6 @@ suite('Env Veil external file changes', () => {
         10000,
         'the revealed state',
       );
-
       await writeFile(filePath, 'API_KEY="ENV_VEIL_REVEAL_SECOND"\n', 'utf8');
       await waitFor(
         () => audit.snapshot().renders.at(-1)?.state === 'hidden',

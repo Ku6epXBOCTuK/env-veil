@@ -2,11 +2,11 @@ import * as assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as vscode from 'vscode';
+import { extensionId } from '../support/extensionId';
 import type { EnvVeilExtensionApi } from '../../src/extension';
 import { isProtectedEnvPath } from '../../src/protectionMonitor';
 import { protectedEnvViewType } from '../../src/viewType';
 
-const extensionId = 'local-development.env-veil';
 
 type EditorAssociations = Record<string, string>;
 
@@ -166,6 +166,7 @@ suite('Env Veil protection warning', () => {
         .update('openIn.mode', 'vscode', vscode.ConfigurationTarget.Workspace);
       protectionAudit.reset();
       previewAudit.reset();
+      previewAudit.setWindowFocused(true);
 
       await openInEnvVeil(file.uri);
       previewAudit.simulateWebviewMessage({ type: 'ready' });

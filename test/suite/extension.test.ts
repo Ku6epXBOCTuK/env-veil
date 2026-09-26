@@ -2,8 +2,8 @@ import * as assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as vscode from 'vscode';
+import { extensionId } from '../support/extensionId';
 
-const extensionId = 'local-development.env-veil';
 const protectedEnvViewType = 'envVeil.protectedEnv';
 const defaultTextEditorId = 'default';
 
