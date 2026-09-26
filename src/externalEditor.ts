@@ -41,7 +41,7 @@ function getLaunchOptions(workspaceFolder?: string) {
 }
 
 const launchFailureCodes = new Set(['ENOENT', 'ENOTDIR', 'EACCES']);
-const launchConfirmationMilliseconds = 400;
+const runningEditorTimeoutMilliseconds = 2000;
 
 function isLaunchFailure(error: Error): boolean {
   const code = (error as NodeJS.ErrnoException).code;
@@ -67,16 +67,7 @@ export async function launchExternalEditor(
       getLaunchOptions(options.workspaceFolder),
     );
     let settled = false;
-    let spawned = false;
-    let confirmationTimer: ReturnType<typeof setTimeout> | undefined;
-    const cleanup = (): void => {
-      if (confirmationTimer !== undefined) {
-        clearTimeout(confirmationTimer);
-        confirmationTimer = undefined;
-      }
-      child.removeListener('error', handleError);
-      child.removeListener('exit', handleExit);
-    };
+    let runningTimer: ReturnType<typeof setTimeout> | undefined;
     const succeed = (): void => {
       if (!settled) {
         settled = true;
@@ -91,21 +82,29 @@ export async function launchExternalEditor(
         reject(error);
       }
     };
-    function handleError(error: Error): void {
-      if (!settled && isLaunchFailure(error)) {
+    const cleanup = (): void => {
+      if (runningTimer !== undefined) {
+        clearTimeout(runningTimer);
+        runningTimer = undefined;
+      }
+    };
+    child.once('error', (error: Error) => {
+      if (isLaunchFailure(error)) {
         fail(error);
       }
-    }
-    function handleExit(code: number | null): void {
-      if (!settled && spawned && code !== 0) {
+    });
+    child.once('exit', (code) => {
+      if (code === 0) {
+        succeed();
+      } else {
         fail(new Error(`External editor exited with code ${code}`));
       }
-    }
-    child.on('error', handleError);
-    child.on('exit', handleExit);
+    });
     child.once('spawn', () => {
-      spawned = true;
-      confirmationTimer = setTimeout(succeed, launchConfirmationMilliseconds);
+      runningTimer = setTimeout(
+        succeed,
+        runningEditorTimeoutMilliseconds,
+      );
     });
   });
 }

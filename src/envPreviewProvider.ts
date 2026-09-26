@@ -1,3 +1,4 @@
+import * as nodePath from 'node:path';
 import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
 import {
@@ -226,6 +227,9 @@ function getWebviewHtml(
 type SessionCallback = (session: PreviewSession) => void;
 type OpenEditorCallback = (session: PreviewSession) => Promise<void>;
 
+const diskRefreshDelayMilliseconds = 120;
+const utf8Decoder = new TextDecoder('utf-8', { ignoreBOM: true });
+
 class PreviewSession {
   private readonly disposables: vscode.Disposable[] = [];
   private readonly documentUri: string;
@@ -241,6 +245,8 @@ class PreviewSession {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private timerGeneration = 0;
   private lastPostedRevision = 0;
+  private sourceText: string | undefined;
+  private diskRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
   public constructor(
     private readonly document: vscode.TextDocument,
@@ -276,13 +282,41 @@ class PreviewSession {
     this.audit?.registerMessageHandler(this.receiveWebviewMessage);
     this.audit?.registerActiveHandler(this.replayHiddenModel);
 
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(
+        vscode.Uri.file(nodePath.dirname(this.document.uri.fsPath)),
+        nodePath.basename(this.document.uri.fsPath),
+      ),
+    );
+    const scheduleDiskRefresh = (): void => {
+      if (this.diskRefreshTimer !== undefined) {
+        clearTimeout(this.diskRefreshTimer);
+      }
+      this.diskRefreshTimer = setTimeout(() => {
+        this.diskRefreshTimer = undefined;
+        void this.refreshFromDisk();
+      }, diskRefreshDelayMilliseconds);
+    };
+    const cancelScheduledDiskRefresh = (): void => {
+      if (this.diskRefreshTimer !== undefined) {
+        clearTimeout(this.diskRefreshTimer);
+        this.diskRefreshTimer = undefined;
+      }
+    };
+
     this.disposables.push(
+      watcher,
+      watcher.onDidChange(scheduleDiskRefresh),
+      watcher.onDidCreate(scheduleDiskRefresh),
+      watcher.onDidDelete(scheduleDiskRefresh),
       this.webviewPanel.webview.onDidReceiveMessage(this.receiveWebviewMessage),
       vscode.workspace.onDidChangeTextDocument((event) => {
         if (
           event.document.uri.toString() === this.documentUri &&
           event.document.version !== this.documentVersion
         ) {
+          cancelScheduledDiskRefresh();
+          this.sourceText = undefined;
           this.refreshHiddenModel();
         }
       }),
@@ -294,6 +328,7 @@ class PreviewSession {
           } else {
             this.replayHiddenModel();
           }
+          void this.refreshFromDisk();
         } else {
           this.hide();
         }
@@ -323,7 +358,7 @@ class PreviewSession {
       return;
     }
 
-    const fullText = this.document.getText();
+    const fullText = this.currentText();
     const timeoutSeconds = getRevealTimeoutSeconds();
     const revealExpiresAt = Date.now() + timeoutSeconds * 1000;
     this.isRevealed = true;
@@ -423,6 +458,10 @@ class PreviewSession {
     }
     this.isDisposed = true;
     this.clearTimer();
+    if (this.diskRefreshTimer !== undefined) {
+      clearTimeout(this.diskRefreshTimer);
+      this.diskRefreshTimer = undefined;
+    }
     this.pendingMessage = undefined;
     this.latestHiddenMessage = undefined;
     this.audit?.unregisterMessageHandler(this.receiveWebviewMessage);
@@ -463,13 +502,34 @@ class PreviewSession {
     }
   }
 
+  private currentText(): string {
+    return this.sourceText ?? this.document.getText();
+  }
+
+  private async refreshFromDisk(): Promise<void> {
+    if (this.isDisposed || this.document.isDirty) {
+      return;
+    }
+    let text: string;
+    try {
+      text = utf8Decoder.decode(await vscode.workspace.fs.readFile(this.document.uri));
+    } catch {
+      return;
+    }
+    if (this.isDisposed || text === this.currentText()) {
+      return;
+    }
+    this.sourceText = text;
+    this.refreshHiddenModel();
+  }
+
   private refreshHiddenModel(): void {
     if (this.isDisposed) {
       return;
     }
     this.clearTimer();
     this.isRevealed = false;
-    this.maskedModel = createMaskedEnvModel(this.document.getText());
+    this.maskedModel = createMaskedEnvModel(this.currentText());
     this.documentVersion = this.document.version;
     this.revision += 1;
     this.latestHiddenMessage = {
