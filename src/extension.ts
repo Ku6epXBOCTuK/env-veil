@@ -5,19 +5,47 @@ import {
   protectedEnvViewType,
   type PreviewAudit,
 } from './envPreviewProvider';
+import {
+  ProtectionAuditRecorder,
+  ProtectionMonitor,
+  type ProtectionAudit,
+} from './protectionMonitor';
 
 export interface EnvVeilExtensionApi {
   readonly previewAudit?: PreviewAudit;
+  readonly protectionAudit?: ProtectionAudit;
 }
 
 export function activate(context: vscode.ExtensionContext): EnvVeilExtensionApi {
-  const auditRecorder =
-    context.extensionMode === vscode.ExtensionMode.Test
-      ? new PreviewAuditRecorder()
-      : undefined;
-  const provider = new EnvPreviewProvider(context.extensionUri, auditRecorder);
+  const isTest = context.extensionMode === vscode.ExtensionMode.Test;
+  const auditRecorder = isTest ? new PreviewAuditRecorder() : undefined;
+  const protectionAudit = isTest ? new ProtectionAuditRecorder() : undefined;
+  const monitor = new ProtectionMonitor(
+    protectionAudit,
+    isTest
+      ? () => Promise.resolve(protectionAudit?.getWarningChoice())
+      : (text, restoreLabel) =>
+          vscode.window.showWarningMessage(text, restoreLabel),
+    (uri) => {
+      void vscode.commands.executeCommand(
+        'vscode.openWith',
+        uri,
+        protectedEnvViewType,
+      );
+    },
+  );
+  const provider = new EnvPreviewProvider(
+    context.extensionUri,
+    auditRecorder,
+    (uri) => monitor.markIntentionalOpen(uri),
+  );
+
+  if (protectionAudit) {
+    protectionAudit.attachWindowReset(() => monitor.resetWarningState());
+  }
 
   context.subscriptions.push(
+    monitor,
     vscode.window.registerCustomEditorProvider(
       protectedEnvViewType,
       provider,
@@ -50,5 +78,8 @@ export function activate(context: vscode.ExtensionContext): EnvVeilExtensionApi 
     }),
   );
 
-  return auditRecorder ? { previewAudit: auditRecorder } : {};
+  return {
+    ...(auditRecorder ? { previewAudit: auditRecorder } : {}),
+    ...(protectionAudit ? { protectionAudit } : {}),
+  };
 }

@@ -15,8 +15,9 @@ import {
   type RenderMessage,
   type WebviewToExtensionMessage,
 } from './messages';
+import { protectedEnvViewType } from './viewType';
 
-export const protectedEnvViewType = 'envVeil.protectedEnv';
+export { protectedEnvViewType };
 
 export interface PreviewAuditModel {
   readonly maskedText: string | null;
@@ -250,6 +251,7 @@ class PreviewSession {
     private readonly onDisposed: SessionCallback,
     private readonly onOpenEditor: OpenEditorCallback,
     private readonly requestSaveBeforeOpen: SavePromptRequest,
+    private readonly markIntentionalOpen: (uri: vscode.Uri) => void,
   ) {
     this.documentUri = document.uri.toString();
   }
@@ -389,6 +391,7 @@ class PreviewSession {
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(
           this.document.uri,
         )?.uri.fsPath;
+        this.markIntentionalOpen(this.document.uri);
         await launchExternalEditor({
           filePath: this.document.uri.fsPath,
           ...(workspaceFolder ? { workspaceFolder } : {}),
@@ -405,6 +408,7 @@ class PreviewSession {
         'External editors are unavailable in a remote workspace. Opening in VS Code instead.',
       );
     }
+    this.markIntentionalOpen(this.document.uri);
     await vscode.commands.executeCommand(
       'vscode.openWith',
       this.document.uri,
@@ -578,6 +582,7 @@ export class EnvPreviewProvider implements vscode.CustomTextEditorProvider {
   public constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly auditRecorder: PreviewAuditRecorder | undefined,
+    private readonly markIntentionalOpen: (uri: vscode.Uri) => void,
   ) {}
 
   public resolveCustomTextEditor(
@@ -610,6 +615,7 @@ export class EnvPreviewProvider implements vscode.CustomTextEditorProvider {
       },
       (sessionToOpen) => sessionToOpen.openInConfiguredEditor(),
       this.auditRecorder?.requestSaveBeforeOpen ?? requestSaveBeforeOpen,
+      this.markIntentionalOpen,
     );
     this.sessions.add(session);
     session.start(token);

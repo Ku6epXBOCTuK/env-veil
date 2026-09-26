@@ -17,6 +17,7 @@ export default defineConfig([
       'out/test/suite/preview.test.js',
       'out/test/suite/revealLifecycle.test.js',
       'out/test/suite/externalEditor.test.js',
+      'out/test/suite/protectionWarning.test.js',
     ],
     version: 'stable',
     workspaceFolder: './test/fixtures/workspace',
