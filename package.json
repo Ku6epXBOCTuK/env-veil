@@ -4,6 +4,7 @@
   "description": "Prevents accidental on-screen exposure of .env values.",
   "version": "0.0.1",
   "publisher": "local-development",
+  "license": "MIT",
   "private": true,
   "engines": {
     "vscode": "^1.105.0"
