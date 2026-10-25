@@ -27,8 +27,8 @@ body {
 .preview-shell {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
   min-width: 0;
-  min-height: 100%;
 }
 
 .preview-header {
@@ -37,7 +37,7 @@ body {
   justify-content: space-between;
   gap: 1rem;
   min-width: 0;
-  padding: 0.75rem 1rem;
+  padding: 0.375rem 1rem;
   border-bottom: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
   background: var(--vscode-sideBar-background, var(--vscode-editor-background));
 }
@@ -164,23 +164,20 @@ body[data-state='revealed'] .preview-status::before {
   min-width: 0;
   min-height: 0;
   margin: 0;
-  padding: 1rem 1.25rem 2rem;
+  padding: 0.5rem 1rem 1rem;
   overflow: auto;
   background: var(--vscode-editor-background);
   color: var(--vscode-editor-foreground);
   font-family: var(--vscode-editor-font-family, monospace);
   font-size: var(--vscode-editor-font-size, 13px);
   font-weight: var(--vscode-editor-font-weight, 400);
-  line-height: 1.55;
+  line-height: 1.2;
   tab-size: 4;
   white-space: pre;
 }
 
 .preview-line {
-  display: block;
-  min-height: 1.55em;
-  min-width: 100%;
-  width: max-content;
+  display: inline;
 }
 
 .preview-key {
