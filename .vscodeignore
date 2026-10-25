@@ -1,5 +1,7 @@
 .gitignore
+.github/**
 .vscode/**
+cog.toml
 .vscode-test.mjs
 icon.svg
 **/*.map

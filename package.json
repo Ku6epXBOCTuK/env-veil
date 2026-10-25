@@ -18,10 +18,18 @@
     "privacy",
     "environment"
   ],
-  "version": "0.1.0",
+  "version": "0.0.0",
   "publisher": "Ku6epXBOCTuK",
   "license": "MIT",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ku6epXBOCTuK/env-veil.git"
+  },
+  "homepage": "https://github.com/Ku6epXBOCTuK/env-veil#readme",
+  "bugs": {
+    "url": "https://github.com/Ku6epXBOCTuK/env-veil/issues"
+  },
   "engines": {
     "vscode": "^1.105.0"
   },
@@ -29,11 +37,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onCustomEditor:envVeil.protectedEnv",
-    "onLanguage:dotenv",
-    "onCommand:envVeil.revealValues",
-    "onCommand:envVeil.hideValues",
-    "onCommand:envVeil.openInConfiguredEditor"
+    "onLanguage:dotenv"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -116,7 +120,10 @@
     "test": "vscode-test",
     "package:inspect": "vsce ls",
     "vscode:prepublish": "npm run typecheck && node esbuild.mjs --production",
-    "package": "vsce package --out dist/env-veil.vsix"
+    "package": "vsce package --out dist/env-veil.vsix",
+    "changelog": "cog changelog",
+    "release:dry": "cog bump --auto --dry-run",
+    "release:bump": "cog bump --auto"
   },
   "overrides": {
     "mocha": "12.0.2"
